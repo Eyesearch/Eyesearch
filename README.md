@@ -33,16 +33,16 @@ web/                                   android/ (app/src/main/java/com/eyesearch
 
 | Module | Web | Android | What it does |
 | --- | --- | --- | --- |
-| home / search-input | `search-input.js` + `.css` | `SearchBarView.kt`, `SearchBarViewModel.kt` | Debounced search-as-you-type, Enter to search, clear, `/` and `Esc` shortcuts |
+| home / search-input | `search-input.js` + `.css` | `SearchBarView.kt` | Explicit search only (Enter or the button), inline mic/lens, clear, `/` and `Esc` shortcuts |
 | home / media-tools | `mic-handler.js`, `lens-handler.js` | `VoiceSearchHelper.kt`, `CameraSearchHelper.kt` | Voice input; camera capture |
 | home / quick-links | `quick-links.js` | `QuickLinksAdapter.kt` | Curated shortcut grid, India-first |
-| home / feed-cards | `weather-card.js`, `news-card.js` | `HomeFeedAdapter.kt` | Live weather (Open-Meteo, keyless) and headlines from our own gateway |
-| menu / theme-selector | `theme-toggle.js` | `ThemePreferences.kt` | System / Light / Dark, persisted |
+| home / feed-cards | `weather-card.js`, `news-card.js` | `WeatherCardView.kt`, `NewsFeedAdapter.kt` | Live weather (Open-Meteo, keyless) and headlines from our own gateway |
+| menu / theme-selector | `theme-toggle.js` | `ThemePreferences.kt` | One toggle button, system default, persisted |
 | menu / language-selector | `lang-switcher.js` | `LocaleHelper.kt` | English-only copy table (the switcher is gone; Kannada text still renders) |
 | profile / account | `auth-placeholder.js` | `AccountPlaceholder.kt` | States plainly that auth does not exist yet |
-| profile / local-history | `history-manager.js`, `clear-history.js` | `LocalHistoryDao.kt`, `HistoryRepository.kt` | Device-only history, de-duplicated, with a confirmed clear |
+| profile / local-history | `history-manager.js`, `clear-history.js`, `history-view.js` | `HistoryActivity.kt`, `HistoryAdapter.kt`, `LocalHistoryDao.kt`, `HistoryRepository.kt` | Timestamped device-only history: relative times, per-row delete, five time-range clears |
 | results / nav-tabs | `tab-switcher.js` | `ResultsTabRow.kt` | ALL vs AI (AI = `/v1/retrieve`, the token-optimised payload) |
-| results / result-cards | `web-card.js` + `card-renderer.css` | `ResultsAdapter.kt`, `ResultCardViewHolder.kt` | Title, breadcrumb, snippet with highlights, favicon fallback, media |
+| results / result-cards | `web-card.js` + `card-renderer.css` | `ResultsAdapter.kt`, `ResultCardViewHolder.kt` | 4-sided cards: breadcrumb + favicon, clickable title, highlighted snippet, media |
 | results / meta-info | `latency-badge.js` | `LatencyIndicatorView.kt` | `5 results · found in 0.43s`, degraded and cached badges, provider names |
 
 Two files sit outside the module tree because they are wiring, not features:
@@ -50,6 +50,20 @@ Two files sit outside the module tree because they are wiring, not features:
 `web/base.css` (design tokens and shared layout, the counterpart of the Android
 theme attributes). Two module-level stylesheets live beside their module:
 `home/search-input/search-input.css` and `results/result-cards/card-renderer.css`.
+
+## Web behaviour
+
+- **Results header**: back arrow at the left, the `eyesearch` wordmark centred,
+  theme toggle and profile at the right. Below it a full search bar carrying the
+  current query (editable, with clear, inline mic/lens and the search button),
+  then the `All` / `AI` tabs, then the latency and provider line.
+- **4-sided result cards**: each result is its own box — `border: 1px solid`,
+  `border-radius: 12px`, `padding: 16px`, `margin-bottom: 16px`, its own
+  background — with favicon + domain breadcrumb, clickable title and snippet.
+- **Full history screen**: opened from the profile popover, with a back arrow,
+  five time-range clears (last 24 hours, last week, last month, last year, all
+  time), per-row relative time ("2 hours ago") and a delete button. Entries are
+  stored in `localStorage` as `{ query, at }` with `at` a Unix timestamp in ms.
 
 ## Gateway
 
@@ -91,6 +105,27 @@ fallback, and never touches `/v1/*` — search results are always live. The work
 is registered from `app.js` on `load`, guarded by a `serviceWorker` check, so the
 app works normally without it. Every path in the shell is relative (`./`), which
 is what lets the whole thing run under the Pages subpath `/Eyesearch/web/`.
+
+### Native architecture
+
+Fragments over one activity, with real XML layouts:
+
+```
+home/     HomeFragment, HomeViewModel, searchbar/SearchBarView,
+          quicklinks/(QuickLinkModel, QuickLinksAdapter), feedcards/(WeatherCardView, NewsFeedAdapter)
+results/  ResultsFragment, ResultsViewModel, tabs/ResultsTabRow,
+          resultcards/(SearchResultItem, ResultsAdapter, ResultCardViewHolder), metainfo/LatencyIndicatorView
+profile/  ProfileFragment, history/(HistoryActivity, HistoryAdapter, LocalHistoryEntity,
+          LocalHistoryDao, HistoryRepository)
+menu/     theme/ThemePreferences
+core/     api/SearchApiClient, database/AppDatabase
+```
+
+Layouts: `fragment_home.xml`, `fragment_results.xml` (back arrow, centred
+wordmark, search bar, All/AI tabs, RecyclerView), `item_search_result.xml`
+(MaterialCardView, `cardCornerRadius="12dp"`, `strokeWidth="1dp"`),
+`activity_history.xml` (five range chips + list), plus `activity_main.xml`,
+`fragment_profile.xml`, `item_history.xml`, `item_news.xml`, `item_quick_link.xml`.
 
 ### Native behaviour
 

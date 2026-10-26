@@ -65,6 +65,15 @@ theme attributes). Two module-level stylesheets live beside their module:
   time), per-row relative time ("2 hours ago") and a delete button. Entries are
   stored in `localStorage` as `{ query, at }` with `at` a Unix timestamp in ms.
 
+## Own index (crawler + indexer)
+
+The gateway now answers from its own FTS5 index before touching any external
+provider, and queues the queries it could not answer for the crawler. That engine
+lives in the gateway repository — see `backend/README.md` here for the schema,
+the crawl policy and the routing contract, or go straight to
+https://github.com/Eyesearch/Eyesearch-Backend (`app/engine/`, `app/crawler/`,
+`app/indexer/`).
+
 ## Gateway
 
 Both clients talk to the same backend — https://github.com/Eyesearch/Eyesearch-Backend

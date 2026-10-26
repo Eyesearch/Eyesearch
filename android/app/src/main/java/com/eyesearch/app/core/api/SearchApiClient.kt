@@ -1,7 +1,6 @@
 package com.eyesearch.app.core.api
 
-import com.eyesearch.app.results.resultcards.SearchMeta
-import com.eyesearch.app.results.resultcards.SearchPayload
+import com.eyesearch.app.core.util.Constants
 import com.eyesearch.app.results.resultcards.SearchResultItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,57 +14,55 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
- * The only place in the app that knows the EyeSearch gateway exists.
+ * The only place in the app that knows the gateway exists.
  *
- * Two contracts, exactly like the web client:
  *   GET  /v1/search?q=&limit=   structured cards
  *   POST /v1/retrieve           token-optimised context (AI tab)
  *
- * Every call is a suspend function on Dispatchers.IO, has a timeout, and turns
- * transport and gateway errors into a typed [SearchError] so the UI can show
- * something honest instead of a stack trace.
+ * Every call is a suspend function on Dispatchers.IO with a timeout, and returns
+ * an [ApiResult] — success carries a [SearchResponse], failure carries an
+ * [ApiError] the UI can render. Nothing throws at the call site.
  */
 class SearchApiClient(
-    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val baseUrl: String = Constants.API_BASE_URL,
     private val client: OkHttpClient = defaultClient(),
 ) {
 
     private val normalizedBase = baseUrl.trimEnd('/')
 
-    /** @throws SearchError */
-    suspend fun search(query: String, limit: Int = DEFAULT_LIMIT): SearchPayload =
+    suspend fun search(query: String, limit: Int = Constants.DEFAULT_LIMIT): ApiResult<SearchResponse> =
         withContext(Dispatchers.IO) {
-            val url = "$normalizedBase/v1/search?q=${encode(query)}&limit=${limit.coerceIn(1, MAX_LIMIT)}"
-            val request = Request.Builder()
-                .url(url)
-                .get()
-                .header("Accept", "application/json")
-                .build()
-            execute(request, query)
+            val url = "$normalizedBase${Constants.SEARCH_PATH}" +
+                "?q=${encode(query)}&limit=${limit.coerceIn(1, Constants.MAX_LIMIT)}"
+            execute(
+                Request.Builder().url(url).get().header("Accept", "application/json").build(),
+                query,
+            )
         }
 
-    /** @throws SearchError */
-    suspend fun retrieve(query: String, limit: Int = DEFAULT_LIMIT): SearchPayload =
+    suspend fun retrieve(query: String, limit: Int = Constants.DEFAULT_LIMIT): ApiResult<SearchResponse> =
         withContext(Dispatchers.IO) {
             val body = JSONObject()
                 .put("query", query)
                 .put("format", "json")
-                .put("limit", limit.coerceIn(1, MAX_LIMIT))
+                .put("limit", limit.coerceIn(1, Constants.MAX_LIMIT))
                 .toString()
                 .toRequestBody(JSON)
-            val request = Request.Builder()
-                .url("$normalizedBase/v1/retrieve")
-                .post(body)
-                .header("Accept", "application/json")
-                .build()
-            execute(request, query)
+            execute(
+                Request.Builder()
+                    .url("$normalizedBase${Constants.RETRIEVE_PATH}")
+                    .post(body)
+                    .header("Accept", "application/json")
+                    .build(),
+                query,
+            )
         }
 
-    private fun execute(request: Request, fallbackQuery: String): SearchPayload {
+    private fun execute(request: Request, fallbackQuery: String): ApiResult<SearchResponse> {
         val response = try {
             client.newCall(request).execute()
         } catch (error: IOException) {
-            throw SearchError.Network(error.message ?: "network unavailable")
+            return ApiResult.Failure(ApiError.network(error.message ?: "network unavailable"))
         }
 
         response.use { result ->
@@ -73,22 +70,26 @@ class SearchApiClient(
             val json = try {
                 if (raw.isBlank()) JSONObject() else JSONObject(raw)
             } catch (error: Exception) {
-                throw SearchError.Unknown("gateway returned malformed JSON (HTTP ${result.code})")
+                return ApiResult.Failure(
+                    ApiError("internal", "gateway returned malformed JSON (HTTP ${result.code})"),
+                )
             }
 
             if (!result.isSuccessful || json.has("error")) {
                 val detail = json.optJSONObject("error")
-                throw SearchError.fromCode(
-                    code = detail?.optString("code"),
-                    message = detail?.optString("message")?.takeIf { it.isNotBlank() } ?: "HTTP ${result.code}",
-                    retryable = detail?.optBoolean("retryable", true) ?: true,
+                return ApiResult.Failure(
+                    ApiError.fromCode(
+                        code = detail?.optString("code"),
+                        message = detail?.optString("message")?.takeIf { it.isNotBlank() } ?: "HTTP ${result.code}",
+                        retryable = detail?.optBoolean("retryable", true) ?: true,
+                    ),
                 )
             }
-            return parsePayload(json, fallbackQuery)
+            return ApiResult.Success(parseResponse(json, fallbackQuery))
         }
     }
 
-    private fun parsePayload(json: JSONObject, fallbackQuery: String): SearchPayload {
+    private fun parseResponse(json: JSONObject, fallbackQuery: String): SearchResponse {
         val results = mutableListOf<SearchResultItem>()
         val array: JSONArray = json.optJSONArray("results") ?: JSONArray()
         for (index in 0 until array.length()) {
@@ -127,43 +128,19 @@ class SearchApiClient(
             failedProviders = failed,
             totalEstimate = json.optInt("total_estimate", -1).takeIf { it >= 0 },
         )
-        return SearchPayload(meta = meta, results = results)
+        return SearchResponse(meta = meta, results = results)
     }
 
     private fun encode(value: String): String = java.net.URLEncoder.encode(value, Charsets.UTF_8.name())
 
     companion object {
-        const val DEFAULT_BASE_URL = "https://eyesearch-backend.onrender.com"
-        const val DEFAULT_LIMIT = 10
-        const val MAX_LIMIT = 50
         private val JSON = "application/json; charset=utf-8".toMediaType()
 
         private fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(14, TimeUnit.SECONDS)
-            .callTimeout(16, TimeUnit.SECONDS)
+            .connectTimeout(Constants.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(Constants.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(Constants.CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
-    }
-}
-
-/** Typed failures. `retryable` drives whether the UI offers a retry. */
-sealed class SearchError(message: String, val retryable: Boolean) : Exception(message) {
-    class BadRequest(message: String) : SearchError(message, false)
-    class RateLimited(message: String) : SearchError(message, true)
-    class ProviderUnavailable(message: String) : SearchError(message, true)
-    class Database(message: String) : SearchError(message, true)
-    class Network(message: String) : SearchError(message, true)
-    class Unknown(message: String) : SearchError(message, true)
-
-    companion object {
-        fun fromCode(code: String?, message: String, retryable: Boolean): SearchError = when (code) {
-            "bad_request" -> BadRequest(message)
-            "rate_limited" -> RateLimited(message)
-            "provider_unavailable" -> ProviderUnavailable(message)
-            "database_error" -> Database(message)
-            "not_found" -> BadRequest(message)
-            else -> if (retryable) Unknown(message) else BadRequest(message)
-        }
     }
 }

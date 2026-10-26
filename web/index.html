@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>EyeSearch</title>
+  <meta name="description" content="EyeSearch — a unified search gateway. One query, live web results, clean cards." />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Kannada:wght@400;500;600&display=swap"
+  />
+  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="home/search-input/search-input.css" />
+  <link rel="stylesheet" href="results/result-cards/card-renderer.css" />
+</head>
+<body>
+  <a class="skip-link" href="#results-region">Skip to results</a>
+
+  <header class="app-bar">
+    <a class="app-brand" href="./" aria-label="EyeSearch home">
+      <span class="app-brand-mark" aria-hidden="true"></span>
+      <span class="app-brand-text">Eye<span class="app-brand-accent">Search</span></span>
+    </a>
+
+    <!-- menu module: theme + language -->
+    <div class="app-bar-actions">
+      <div class="mount mount-menu" data-mount="menu"></div>
+      <button class="icon-button" type="button" data-action="toggle-profile" aria-expanded="false" aria-controls="profile-panel" aria-label="Profile and history">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.8 20c.9-3.5 3.8-5.4 7.2-5.4s6.3 1.9 7.2 5.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- profile module: account placeholder + local history -->
+  <aside class="profile-panel" id="profile-panel" hidden>
+    <div class="mount" data-mount="account"></div>
+    <div class="mount" data-mount="history"></div>
+  </aside>
+
+  <main class="app-main">
+    <!-- 1. home -->
+    <section class="home" id="home-section" aria-label="Search">
+      <div class="home-inner">
+        <h1 class="home-title">Eye<span class="app-brand-accent">Search</span></h1>
+        <p class="home-tagline" data-i18n="tagline"></p>
+
+        <div class="mount" data-mount="search-input"></div>
+        <div class="mount mount-media" data-mount="media-tools"></div>
+        <div class="mount" data-mount="quick-links"></div>
+        <div class="mount mount-feed" data-mount="feed-cards"></div>
+      </div>
+    </section>
+
+    <!-- 4. results -->
+    <section class="results" id="results-region" hidden aria-label="Results">
+      <div class="mount" data-mount="nav-tabs"></div>
+      <div class="mount" data-mount="meta-info"></div>
+      <div class="mount" data-mount="result-cards" id="result-cards"></div>
+      <div class="notice" id="app-notice" hidden></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p data-i18n="footer"></p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,29 +1,33 @@
 /**
- * menu/theme-selector — System / Light / Dark.
+ * menu/theme-selector — one button, two states.
  *
- * The choice lives in localStorage; "system" follows the OS through a media
- * query listener. The resolved theme is written to <html data-theme> so all CSS
- * variables switch in one place.
+ * Starts on the system theme (`prefers-color-scheme`), and a single click
+ * flips to the opposite of what is currently rendered, persisting that explicit
+ * choice in localStorage. The icon shows what a click will give you: 🌙 to go
+ * dark, ☀️ to go light.
  */
 
-import { t, onLangChange } from "../language-selector/lang-switcher.js";
-
 const STORAGE_KEY = "eyesearch:theme";
-const MODES = ["system", "light", "dark"];
-const listeners = new Set();
+const MOON = "\u{1F319}";
+const SUN = "\u2600\uFE0F";
+
+const media =
+  typeof window !== "undefined" && window.matchMedia
+    ? window.matchMedia("(prefers-color-scheme: dark)")
+    : null;
 
 function readStored() {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    return MODES.includes(value) ? value : "system";
+    return value === "light" || value === "dark" ? value : null;
   } catch (error) {
-    return "system";
+    return null;
   }
 }
 
-let mode = readStored();
-
-const media = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+/** "system" until the user makes an explicit choice. */
+let mode = readStored() || "system";
+const listeners = new Set();
 
 export function resolvedTheme() {
   if (mode === "system") return media && media.matches ? "dark" : "light";
@@ -35,21 +39,27 @@ export function getTheme() {
 }
 
 function apply() {
-  document.documentElement.dataset.theme = mode;
-  document.documentElement.style.colorScheme = resolvedTheme();
-  listeners.forEach((handler) => handler({ mode, resolved: resolvedTheme() }));
-  document.dispatchEvent(new CustomEvent("eyesearch:theme", { detail: { mode, resolved: resolvedTheme() } }));
+  const resolved = resolvedTheme();
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.style.colorScheme = resolved;
+  listeners.forEach((handler) => handler({ mode, resolved }));
+  document.dispatchEvent(new CustomEvent("eyesearch:theme", { detail: { mode, resolved } }));
 }
 
 export function setTheme(next) {
-  mode = MODES.includes(next) ? next : "system";
+  mode = next === "light" || next === "dark" ? next : "system";
   try {
-    localStorage.setItem(STORAGE_KEY, mode);
+    if (mode === "system") localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, mode);
   } catch (error) {
-    /* private mode */
+    /* private mode: the choice simply does not persist */
   }
   apply();
   return mode;
+}
+
+export function toggleTheme() {
+  return setTheme(resolvedTheme() === "dark" ? "light" : "dark");
 }
 
 export function onThemeChange(handler) {
@@ -71,38 +81,30 @@ if (media) {
 export function mountThemeToggle(container) {
   if (!container) throw new Error("mountThemeToggle: container is required");
 
-  const wrap = document.createElement("div");
-  wrap.className = "segmented theme-toggle";
-  wrap.setAttribute("role", "group");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "icon-button theme-toggle";
+  button.dataset.action = "toggle-theme";
 
-  const buttons = MODES.map((entry) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "segment";
-    button.dataset.themeMode = entry;
-    button.addEventListener("click", () => {
-      setTheme(entry);
-      sync();
-    });
-    wrap.appendChild(button);
-    return button;
+  const sync = () => {
+    const resolved = resolvedTheme();
+    const next = resolved === "dark" ? "light" : "dark";
+    button.textContent = next === "dark" ? MOON : SUN;
+    button.setAttribute("aria-label", next === "dark" ? "Switch to dark theme" : "Switch to light theme");
+    button.setAttribute("title", next === "dark" ? "Dark theme" : "Light theme");
+    button.setAttribute("aria-pressed", String(resolved === "dark"));
+    button.dataset.resolved = resolved;
+  };
+
+  button.addEventListener("click", () => {
+    toggleTheme();
+    sync();
   });
-
-  container.appendChild(wrap);
-
-  function sync() {
-    const labels = { system: t("themeSystem"), light: t("themeLight"), dark: t("themeDark") };
-    wrap.setAttribute("aria-label", t("theme"));
-    buttons.forEach((button) => {
-      const entry = button.dataset.themeMode;
-      button.textContent = labels[entry];
-      button.setAttribute("aria-pressed", String(entry === mode));
-    });
-  }
 
   apply();
   sync();
-  onLangChange(sync);
+  onThemeChange(sync);
+  container.appendChild(button);
 
-  return { element: wrap };
+  return { element: button, getTheme, setTheme, toggle: toggleTheme };
 }

@@ -166,6 +166,25 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
+.app-bar-start {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.back-button {
+  width: 34px;
+  height: 34px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.back-button svg {
+  width: 20px;
+  height: 20px;
+}
+
 .app-brand {
   display: inline-flex;
   align-items: center;
@@ -185,6 +204,10 @@ button {
 
 .app-brand-accent {
   color: var(--accent);
+}
+
+.app-brand-text {
+  letter-spacing: -0.01em;
 }
 
 .app-bar-actions {
@@ -430,35 +453,11 @@ button {
   }
 }
 
-/* ---------- menu module: segmented controls ---------- */
+/* ---------- menu module: single theme toggle ---------- */
 
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-subtle);
-}
-
-.segment {
-  padding: 5px 11px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12.5px;
-  transition: background var(--dur) ease, color var(--dur) ease;
-}
-
-.segment[aria-pressed="true"] {
-  background: var(--bg-elevated);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
-}
-
-.lang-switcher {
-  margin-left: 2px;
+.theme-toggle {
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ---------- home/quick-links ---------- */

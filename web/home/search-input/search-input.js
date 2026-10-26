@@ -1,13 +1,14 @@
 /**
  * home/search-input — the search field.
  *
- * Owns: input markup, debounced search-as-you-type, clear button, keyboard
- * shortcuts, and the disabled/busy affordances. It never fetches anything; it
- * reports intent through `onSearch(query, { immediate })`.
+ * Owns: the field, the clear button, the submit button and the inline action
+ * slot (voice and camera live there, inside the bar). It never fetches anything.
+ *
+ * Searching is explicit: a search runs only when the form is submitted — Enter
+ * in the field, or a click on the search button. Typing never triggers a request.
  */
 
-import { API_CONFIG } from "../../config/api-config.js";
-import { t, onLangChange, getLang } from "../../menu/language-selector/lang-switcher.js";
+import { t } from "../../menu/language-selector/lang-switcher.js";
 
 const SEARCH_ICON =
   '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5 21 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -16,7 +17,7 @@ const CLEAR_ICON =
 
 /**
  * @param {HTMLElement} container
- * @param {{onSearch: (query: string, meta: {immediate: boolean}) => void, onClear?: () => void}} handlers
+ * @param {{onSearch: (query: string) => void, onClear?: () => void}} handlers
  */
 export function mountSearchInput(container, handlers) {
   if (!container) throw new Error("mountSearchInput: container is required");
@@ -42,6 +43,7 @@ export function mountSearchInput(container, handlers) {
   input.autocomplete = "off";
   input.autocapitalize = "off";
   input.spellcheck = false;
+  input.placeholder = t("searchPlaceholder");
   input.setAttribute("aria-label", t("searchLabel"));
 
   const clear = document.createElement("button");
@@ -51,13 +53,18 @@ export function mountSearchInput(container, handlers) {
   clear.setAttribute("aria-label", t("clear"));
   clear.innerHTML = CLEAR_ICON;
 
+  // Voice and camera mount here, between the field and the search button.
+  const actions = document.createElement("span");
+  actions.className = "search-actions";
+  actions.dataset.slot = "media-tools";
+
   const submit = document.createElement("button");
   submit.type = "submit";
   submit.className = "search-submit";
   submit.setAttribute("aria-label", t("searchLabel"));
   submit.innerHTML = SEARCH_ICON;
 
-  form.append(iconWrap, input, clear, submit);
+  form.append(iconWrap, input, clear, actions, submit);
 
   const hint = document.createElement("p");
   hint.className = "search-hint";
@@ -65,57 +72,23 @@ export function mountSearchInput(container, handlers) {
 
   container.append(form, hint);
 
-  let timer = 0;
-  let composing = false;
-
   const syncClear = () => {
     clear.hidden = input.value.length === 0;
   };
 
-  const emit = (query, immediate) => {
-    const cleaned = query.replace(/\s+/g, " ").trim();
-    if (!cleaned) return;
-    onSearch(cleaned, { immediate });
+  const submitSearch = () => {
+    const cleaned = input.value.replace(/\s+/g, " ").trim();
+    if (cleaned) onSearch(cleaned);
   };
 
-  const cancelPending = () => {
-    if (timer) {
-      clearTimeout(timer);
-      timer = 0;
-    }
-  };
-
-  input.addEventListener("compositionstart", () => {
-    composing = true;
-  });
-  input.addEventListener("compositionend", () => {
-    composing = false;
-  });
-
-  input.addEventListener("input", () => {
-    syncClear();
-    cancelPending();
-    if (composing) return;
-    const value = input.value.trim();
-    if (value.length === 0) {
-      onClear();
-      return;
-    }
-    if (value.length < API_CONFIG.minChars && value.length < 2) return;
-    timer = setTimeout(() => {
-      timer = 0;
-      emit(input.value, false);
-    }, API_CONFIG.debounceMs);
-  });
+  input.addEventListener("input", syncClear);
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    cancelPending();
-    emit(input.value, true);
+    submitSearch();
   });
 
   clear.addEventListener("click", () => {
-    cancelPending();
     input.value = "";
     syncClear();
     onClear();
@@ -129,24 +102,12 @@ export function mountSearchInput(container, handlers) {
       event.preventDefault();
       input.focus();
     } else if (event.key === "Escape" && active === input) {
-      cancelPending();
       input.value = "";
       syncClear();
       onClear();
       input.blur();
     }
   });
-
-  const refreshLabels = () => {
-    input.setAttribute("aria-label", t("searchLabel"));
-    clear.setAttribute("aria-label", t("clear"));
-    submit.setAttribute("aria-label", t("searchLabel"));
-    hint.textContent = t("searchHint");
-    input.placeholder = t("searchPlaceholder");
-    input.lang = getLang();
-  };
-  refreshLabels();
-  onLangChange(refreshLabels);
 
   return {
     getValue: () => input.value,
@@ -160,5 +121,7 @@ export function mountSearchInput(container, handlers) {
       syncClear();
     },
     element: form,
+    actions,
+    submit: submitSearch,
   };
 }

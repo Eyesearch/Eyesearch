@@ -1,13 +1,13 @@
 /**
  * Composition root. This file owns application state and wires the four modules
  * together; every module below is independent and only talks through the small
- * callbacks and DOM events declared here.
+ * callbacks declared here.
  *
- *   home/search-input      → onSearch(query, {immediate})
- *   home/media-tools       → onTranscript(text) / onImage(file)
+ *   home/search-input      → onSearch(query)   (Enter or the search button only)
+ *   home/media-tools       → onTranscript(text) / onImage(file), inside the bar
  *   home/quick-links       → navigation only
  *   home/feed-cards        → weather (Open-Meteo) + headlines (our own gateway)
- *   menu/*                 → theme and language, persisted in localStorage
+ *   menu/theme-selector    → one toggle button, system default
  *   profile/*              → auth placeholder + local search history
  *   results/*              → tabs, cards, latency/provider badges
  */
@@ -20,7 +20,7 @@ import { mountQuickLinks } from "./home/quick-links/quick-links.js";
 import { mountWeatherCard } from "./home/feed-cards/weather-card.js";
 import { mountNewsCard } from "./home/feed-cards/news-card.js";
 import { mountThemeToggle } from "./menu/theme-selector/theme-toggle.js";
-import { mountLangSwitcher, t, getLang, onLangChange } from "./menu/language-selector/lang-switcher.js";
+import { t, getLang } from "./menu/language-selector/lang-switcher.js";
 import { mountAuthPlaceholder } from "./profile/account/auth-placeholder.js";
 import { addHistory } from "./profile/local-history/history-manager.js";
 import { mountClearHistory } from "./profile/local-history/clear-history.js";
@@ -45,14 +45,15 @@ const els = {
   notice: document.getElementById("app-notice"),
   profilePanel: document.getElementById("profile-panel"),
   profileToggle: document.querySelector('[data-action="toggle-profile"]'),
+  backButton: document.querySelector('button[data-action="go-home"]'),
+  brand: document.querySelector('a[data-action="go-home"]'),
 };
 
 /* ------------------------------ small helpers ----------------------------- */
 
 function applyStaticText() {
   document.querySelectorAll("[data-i18n]").forEach((node) => {
-    const key = node.getAttribute("data-i18n");
-    node.textContent = t(key);
+    node.textContent = t(node.getAttribute("data-i18n"));
   });
   document.documentElement.lang = getLang();
 }
@@ -64,15 +65,11 @@ function showNotice(message, { ok = false } = {}) {
   els.notice.hidden = !message;
 }
 
-function showHome() {
-  if (els.home) els.home.hidden = false;
-  if (els.results) els.results.hidden = true;
-  showNotice("");
-}
-
-function showResults() {
-  if (els.home) els.home.hidden = true;
-  if (els.results) els.results.hidden = false;
+function setView(view) {
+  const results = view === "results";
+  if (els.home) els.home.hidden = results;
+  if (els.results) els.results.hidden = !results;
+  if (els.backButton) els.backButton.hidden = !results;
 }
 
 function setBusy(busy) {
@@ -130,7 +127,7 @@ function renderError(error) {
   retry.type = "button";
   retry.className = "retry-button";
   retry.textContent = t("retry");
-  retry.addEventListener("click", () => runSearch(state.query, { immediate: true }));
+  retry.addEventListener("click", () => runSearch(state.query));
   wrap.append(heading, body, retry);
   els.cards.appendChild(wrap);
   latency.reset();
@@ -143,12 +140,22 @@ function terms(query) {
     .slice(0, 6);
 }
 
+function syncUrl(query, push) {
+  const target = query ? `?q=${encodeURIComponent(query)}` : location.pathname;
+  try {
+    if (push) history.pushState({ q: query }, "", target);
+    else history.replaceState({ q: query }, "", target);
+  } catch (error) {
+    /* file:// or sandboxed contexts: URL sync is optional */
+  }
+}
+
 /* --------------------------------- results -------------------------------- */
 
-async function runSearch(query, { immediate = false, tab = state.tab } = {}) {
+async function runSearch(query, { tab = state.tab } = {}) {
   const cleaned = String(query || "").replace(/\s+/g, " ").trim();
   if (!cleaned) {
-    showHome();
+    goHome();
     return;
   }
 
@@ -161,7 +168,8 @@ async function runSearch(query, { immediate = false, tab = state.tab } = {}) {
   const controller = new AbortController();
   state.controller = controller;
 
-  showResults();
+  setView("results");
+  syncUrl(cleaned, true);
   showNotice("");
   renderSkeletons();
   setBusy(true);
@@ -212,45 +220,64 @@ function renderPayload(payload, query, tab, started) {
   });
   els.cards.appendChild(fragment);
 
-  if (payload.degraded) {
-    showNotice(t("degradedNotice"));
+  if (payload.degraded) showNotice(t("degradedNotice"));
+}
+
+/** Reset to the home hero: clear results, the URL and the in-flight request. */
+function goHome({ focus = true } = {}) {
+  state.token += 1;
+  if (state.controller) {
+    state.controller.abort();
+    state.controller = null;
   }
+  state.query = "";
+  state.lastPayload = null;
+  if (els.cards) els.cards.textContent = "";
+  latency.reset();
+  showNotice("");
+  setView("home");
+  syncUrl("", false);
+  if (els.profilePanel && !els.profilePanel.hidden) {
+    els.profilePanel.hidden = true;
+    els.profileToggle?.setAttribute("aria-expanded", "false");
+  }
+  if (focus && searchInput) searchInput.focus();
 }
 
 /* --------------------------------- mounting -------------------------------- */
 
 const searchInput = mountSearchInput(mount("search-input"), {
-  onSearch: (query, meta) => {
+  onSearch: (query) => {
     addHistory(query);
-    runSearch(query, { immediate: Boolean(meta && meta.immediate) });
+    runSearch(query);
   },
-  onClear: () => showHome(),
+  onClear: () => goHome({ focus: false }),
 });
 
 const latency = mountLatencyBadge(mount("meta-info"));
 
 const tabs = mountTabSwitcher(mount("nav-tabs"), {
   onChange: (tab) => {
-    if (state.query) runSearch(state.query, { immediate: true, tab });
+    if (state.query) runSearch(state.query, { tab });
     else state.tab = tab;
   },
 });
 
-mountMicButton(mount("media-tools"), {
+mountMicButton(searchInput.actions, {
   onTranscript: (text) => {
     searchInput.setValue(text);
     addHistory(text);
-    runSearch(text, { immediate: true });
+    runSearch(text);
   },
+  onError: (message) => showNotice(message),
 });
 
-mountLensButton(mount("media-tools"), {
+mountLensButton(searchInput.actions, {
   onImage: (file) => {
     // The gateway has no vision endpoint yet, so say so instead of pretending.
-    showNotice(
-      t("lensNotice").replace("{name}", file && file.name ? file.name : "image"),
-    );
+    showNotice(t("lensNotice").replace("{name}", file && file.name ? file.name : "image"));
   },
+  onError: (message) => showNotice(message),
 });
 
 mountQuickLinks(mount("quick-links"), {});
@@ -267,24 +294,18 @@ mountNewsCard(newsMount, {
   onOpen: (query) => {
     searchInput.setValue(query);
     addHistory(query);
-    runSearch(query, { immediate: true });
+    runSearch(query);
   },
 });
 
 mountThemeToggle(mount("menu"));
-mountLangSwitcher(mount("menu"), {
-  onChange: () => {
-    applyStaticText();
-    if (state.query && state.lastPayload) renderPayload(state.lastPayload, state.query, state.tab, performance.now());
-  },
-});
 
 mountAuthPlaceholder(mount("account"));
 mountClearHistory(mount("history"), {
   onPick: (query) => {
     searchInput.setValue(query);
     addHistory(query);
-    runSearch(query, { immediate: true });
+    runSearch(query);
   },
   onCleared: () => {
     if (els.profilePanel) els.profilePanel.hidden = true;
@@ -292,13 +313,19 @@ mountClearHistory(mount("history"), {
   },
 });
 
-/* ------------------------------- profile panel ----------------------------- */
+/* ------------------------------ navigation --------------------------------- */
+
+els.backButton?.addEventListener("click", () => goHome());
+
+els.brand?.addEventListener("click", (event) => {
+  event.preventDefault();
+  goHome();
+});
 
 els.profileToggle?.addEventListener("click", () => {
   const open = els.profilePanel.hidden;
   els.profilePanel.hidden = !open;
   els.profileToggle.setAttribute("aria-expanded", String(open));
-  if (open) els.profileToggle.focus();
 });
 
 document.addEventListener("click", (event) => {
@@ -310,34 +337,42 @@ document.addEventListener("click", (event) => {
   }
 });
 
+window.addEventListener("popstate", (event) => {
+  const query = (event.state && event.state.q) || new URLSearchParams(location.search).get("q") || "";
+  if (query) {
+    searchInput.setValue(query);
+    runSearch(query);
+  } else {
+    goHome({ focus: false });
+  }
+});
+
+/* ----------------------------- service worker ------------------------------ */
+
+// Progressive enhancement: the app works without it, but with it the shell and
+// every module load offline and repeat visits skip the network for static code.
+if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((error) => {
+      console.warn("eyesearch: service worker registration failed", error);
+    });
+  });
+}
+
 /* ----------------------------------- boot ---------------------------------- */
 
-onLangChange(() => applyStaticText());
 applyStaticText();
+setView("home");
 
 const initialQuery = new URLSearchParams(location.search).get("q");
 if (initialQuery && initialQuery.trim()) {
   searchInput.setValue(initialQuery);
-  runSearch(initialQuery, { immediate: true });
-} else {
-  showHome();
-}
-
-/* ----------------------------- service worker ----------------------------- */
-
-// Progressive enhancement: the app works without it, but with it the shell and
-// every module load offline and repeat visits skip the network for static code.
-// Registered from a module so the URL resolves against the page, not the script.
-if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch((error) => {
-      console.warn("EyeSearch: service worker registration failed", error);
-    });
-  });
+  runSearch(initialQuery);
 }
 
 // Exposed for tests and for embedding the page elsewhere.
 window.EyeSearchApp = {
   search: (query, options) => runSearch(query, options),
+  home: () => goHome(),
   getState: () => ({ ...state, controller: undefined }),
 };

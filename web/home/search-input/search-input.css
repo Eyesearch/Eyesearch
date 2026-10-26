@@ -1,11 +1,10 @@
-/* home/search-input — search area, including the media-tool buttons that sit
-   directly beneath the field (they belong to home/media-tools but share this
-   visual row). */
+/* home/search-input — the search bar and the controls inside it.
+   Voice and camera are inline buttons between the field and the search button. */
 
 .search-form {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   height: 56px;
   padding: 6px 8px 6px 16px;
@@ -40,7 +39,7 @@
   border: 0;
   background: transparent;
   color: var(--text);
-  font-family: var(--font-kannada);
+  font-family: var(--font-latin);
   font-size: 16px;
   outline: none;
   appearance: none;
@@ -48,11 +47,48 @@
 
 .search-field::placeholder {
   color: var(--text-faint);
-  font-family: var(--font-latin);
 }
 
 .search-field::-webkit-search-cancel-button {
   display: none;
+}
+
+/* inline action slot: voice + camera */
+
+.search-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.search-inline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  transition: background var(--dur) ease, color var(--dur) ease;
+}
+
+.search-inline-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.search-inline-button:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+
+.search-inline-button[data-listening="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .search-clear {
@@ -107,69 +143,6 @@
   margin: 12px 0 0;
   font-size: 12.5px;
   color: var(--text-faint);
-}
-
-/* media tools row (mic + lens) */
-
-.media-tools {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.media-tool {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-  font-size: 13px;
-  transition: border-color var(--dur) ease, color var(--dur) ease, background var(--dur) ease;
-}
-
-.media-tool svg {
-  width: 16px;
-  height: 16px;
-}
-
-.media-tool:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  color: var(--text);
-  background: var(--bg-subtle);
-}
-
-.media-tool:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.media-tool[data-listening="true"] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.media-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 10px;
-  font-size: 12.5px;
-  color: var(--text-faint);
-}
-
-.media-preview img {
-  width: 46px;
-  height: 46px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 1px solid var(--border);
 }
 
 @media (max-width: 640px) {

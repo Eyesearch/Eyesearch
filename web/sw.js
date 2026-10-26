@@ -8,7 +8,7 @@
  *   - Cache-first is safe here because every asset is versioned by CACHE_NAME;
  *     bump it and the old cache is dropped on activate.
  */
-const CACHE_NAME = "eyesearch-v1";
+const CACHE_NAME = "eyesearch-v2";
 const OFFLINE_URL = "./index.html";
 
 const PRECACHE = [
@@ -90,7 +90,7 @@ self.addEventListener("fetch", (event) => {
           return new Response(
             "<!doctype html><meta charset=utf-8><title>Offline</title>" +
               "<body style=\"font:16px system-ui;padding:2rem\">" +
-              "<h1>EyeSearch is offline</h1><p>Reconnect and reload to search.</p>",
+              "<h1>eyesearch is offline</h1><p>Reconnect and reload to search.</p>",
             { headers: { "Content-Type": "text/html; charset=utf-8" }, status: 503 }
           );
         }

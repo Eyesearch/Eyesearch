@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>EyeSearch</title>
-  <meta name="description" content="EyeSearch — a unified search gateway. One query, live web results, clean cards." />
+  <title>eyesearch</title>
+  <meta name="description" content="eyesearch — a unified search gateway. One query, live web results, clean cards." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)" />
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="EyeSearch" />
+  <meta name="apple-mobile-web-app-title" content="eyesearch" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" href="./assets/icons/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./assets/icons/favicon.svg" />
@@ -27,15 +27,21 @@
   <a class="skip-link" href="#results-region">Skip to results</a>
 
   <header class="app-bar">
-    <a class="app-brand" href="./" aria-label="EyeSearch home">
-      <span class="app-brand-mark" aria-hidden="true"></span>
-      <span class="app-brand-text">Eye<span class="app-brand-accent">Search</span></span>
-    </a>
+    <div class="app-bar-start">
+      <!-- Back to the home hero; only visible in the results view. -->
+      <button class="icon-button back-button" type="button" data-action="go-home" aria-label="Back to home" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <a class="app-brand" href="./" data-action="go-home" aria-label="eyesearch home">
+        <span class="app-brand-mark" aria-hidden="true"></span>
+        <span class="app-brand-text">eyesearch</span>
+      </a>
+    </div>
 
-    <!-- menu module: theme + language -->
     <div class="app-bar-actions">
+      <!-- menu module: single theme toggle -->
       <div class="mount mount-menu" data-mount="menu"></div>
-      <button class="icon-button" type="button" data-action="toggle-profile" aria-expanded="false" aria-controls="profile-panel" aria-label="Profile and history">
+      <button class="icon-button" type="button" data-action="toggle-profile" aria-expanded="false" aria-controls="profile-panel" aria-label="Profile and recent searches">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.8 20c.9-3.5 3.8-5.4 7.2-5.4s6.3 1.9 7.2 5.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
       </button>
     </div>
@@ -51,11 +57,10 @@
     <!-- 1. home -->
     <section class="home" id="home-section" aria-label="Search">
       <div class="home-inner">
-        <h1 class="home-title">Eye<span class="app-brand-accent">Search</span></h1>
+        <h1 class="home-title">eyesearch</h1>
         <p class="home-tagline" data-i18n="tagline"></p>
 
         <div class="mount" data-mount="search-input"></div>
-        <div class="mount mount-media" data-mount="media-tools"></div>
         <div class="mount" data-mount="quick-links"></div>
         <div class="mount mount-feed" data-mount="feed-cards"></div>
       </div>

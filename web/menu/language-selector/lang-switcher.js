@@ -28,6 +28,7 @@ const STRINGS = {
   searchLabel: "Search",
   searchPlaceholder: "Search the web…",
   searchHint: "Press Enter or the search button to run a search. / focuses the field, Esc clears it.",
+  suggestions: "Suggestions",
   clear: "Clear search",
   mic: "Voice search",
   micListening: "Listening…",

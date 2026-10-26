@@ -8,7 +8,7 @@
  *   - Cache-first is safe here because every asset is versioned by CACHE_NAME;
  *     bump it and the old cache is dropped on activate.
  */
-const CACHE_NAME = "eyesearch-v3";
+const CACHE_NAME = "eyesearch-v4";
 const OFFLINE_URL = "./index.html";
 
 const PRECACHE = [

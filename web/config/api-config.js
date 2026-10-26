@@ -27,6 +27,12 @@ export const API_CONFIG = Object.freeze({
   baseUrl: resolveBaseUrl(),
   searchPath: "/v1/search",
   retrievePath: "/v1/retrieve",
+  suggestPath: "/v1/suggest",
+  // Autocomplete is cheap but not free: a short debounce and a floor of two
+  // characters keep the address bar quiet while typing.
+  suggestDebounceMs: 250,
+  suggestMinChars: 2,
+  suggestLimit: 6,
   defaultLimit: 10,
   maxLimit: 50,
   requestTimeoutMs: 14000,
@@ -65,6 +71,11 @@ export function buildSearchUrl(query, limit = API_CONFIG.defaultLimit) {
     limit: String(Math.min(Math.max(1, limit), API_CONFIG.maxLimit)),
   });
   return `${API_CONFIG.baseUrl}${API_CONFIG.searchPath}?${params.toString()}`;
+}
+
+export function buildSuggestUrl(query, limit = API_CONFIG.suggestLimit) {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  return `${API_CONFIG.baseUrl}${API_CONFIG.suggestPath}?${params.toString()}`;
 }
 
 export function buildRetrieveUrl() {
@@ -114,6 +125,43 @@ async function request(url, options = {}) {
     });
   }
   return body;
+}
+
+/**
+ * Autocomplete completions for the search bar.
+ *
+ * The gateway answers in the OpenSearch suggestions shape — `[query, [items]]` —
+ * so this parses that and tolerates anything else by returning no suggestions.
+ *
+ * @param {string} query
+ * @param {{limit?: number, signal?: AbortSignal}} options
+ * @returns {Promise<string[]>}
+ */
+export async function fetchSuggestions(query, options = {}) {
+  const trimmed = String(query || "").trim();
+  if (trimmed.length < API_CONFIG.suggestMinChars) return [];
+
+  const { signal, cleanup } = withTimeout(options.signal, API_CONFIG.requestTimeoutMs);
+  let response;
+  try {
+    response = await fetch(buildSuggestUrl(trimmed, options.limit), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal,
+    });
+  } catch (error) {
+    cleanup();
+    return []; // suggestions are a convenience: never surface an error for them
+  }
+  cleanup();
+
+  if (!response.ok) return [];
+  const payload = await response.json().catch(() => null);
+  const items = Array.isArray(payload) && Array.isArray(payload[1]) ? payload[1] : [];
+  return items
+    .filter((item) => typeof item === "string" && item.trim().length > 0)
+    .map((item) => item.trim())
+    .slice(0, options.limit || API_CONFIG.suggestLimit);
 }
 
 /**

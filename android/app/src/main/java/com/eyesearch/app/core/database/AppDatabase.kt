@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.eyesearch.app.profile.history.LocalHistoryDao
 
 /**
  * The single Room database for the app.

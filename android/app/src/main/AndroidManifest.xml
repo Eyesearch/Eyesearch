@@ -27,7 +27,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
+        android:theme="@style/Theme.EyeSearch"
         android:usesCleartextTraffic="false">
 
         <!-- Declares eyesearch as a searchable activity for the system dialog. -->

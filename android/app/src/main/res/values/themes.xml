@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Light theme (default). DayNight parent so the system setting is honoured. -->
+    <style name="Theme.EyeSearch" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/link</item>
+        <item name="colorPrimaryDark">@color/app_background</item>
+        <item name="colorAccent">@color/link</item>
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_muted</item>
+        <item name="android:statusBarColor">@color/app_background</item>
+        <item name="android:navigationBarColor">@color/app_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+    </style>
+
+    <!-- Same theme, dark window decorations; values-night/colors.xml swaps the palette. -->
+    <style name="Theme.EyeSearch.Dark" parent="Theme.EyeSearch">
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+</resources>

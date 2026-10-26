@@ -1,6 +1,17 @@
+# web
 .DS_Store
 Thumbs.db
 node_modules/
 .netlify/
 .vercel/
 *.log
+
+# android
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+*.iml
+.idea/
+captures/

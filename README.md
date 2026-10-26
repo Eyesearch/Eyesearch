@@ -1,143 +1,108 @@
-# EyeSearch — Web UI
+# EyeSearch
 
-The search front end for the EyeSearch gateway: a minimal, fast, dependency-free
-single page that talks to `GET /v1/search` and renders result cards.
+Two clients, one gateway. The repository is split strictly into `web/` and
+`android/`, and each side repeats the same four modules so a change in one is
+easy to mirror in the other.
 
-- Backend / API: https://github.com/Eyesearch/Eyesearch-Backend
-- Gateway this build points at: `https://eyesearch-backend.onrender.com`
-
-There is no build step and no `node_modules`. `index.html`, `assets/` and the
-deploy configs are the whole application, so it deploys unchanged to Vercel,
-Netlify, Cloudflare Pages, GitHub Pages, or any static host — including
-`python3 -m http.server`.
-
-## What it does
-
-- **Central search bar**, Google/Perplexity-like: pill shape, clear button,
-  visible focus ring, `Enter` to search, `/` to focus, `Esc` to clear.
-- **Search-as-you-type** with a 320 ms debounce and a 2-character minimum, so a
-  keystroke never costs a request. In-flight requests are aborted when the query
-  changes, so a slow response cannot overwrite a newer one.
-- **Result cards**: clickable title, domain breadcrumb (host + up to two path
-  segments), snippet with the query terms highlighted, favicon with a two-step
-  fallback and finally a letter tile, media thumbnail when the API supplies a
-  `thumbnail_url`/`poster_url`, and a content-kind chip (Video, News, PDF…).
-- **Latency indicator**: `10 results · found in 0.42s`, taken from the API's
-  `took_ms`.
-- **Honest partial results**: when the gateway reports `degraded`, a badge names
-  the providers that failed. `cache_hit` shows as a `Cached` badge.
-- **Loading skeletons** instead of a spinner, **empty state** with the query
-  echoed back, and an **error state** that maps the gateway's error codes
-  (`provider_unavailable`, `rate_limited`, `bad_request`…) to plain language and
-  offers a retry.
-- **Kannada and English**: Inter for Latin text, Noto Sans Kannada for Kannada,
-  with `lang="kn"` applied automatically to any Kannada title or snippet so the
-  browser picks the right face and screen readers switch voice.
-- **Shareable URLs**: `?q=` is kept in sync with `pushState`, and back/forward
-  work.
-- **Responsive and accessible**: mobile-first layout, skip link, `aria-live`
-  status, `aria-busy` on the result list, keyboard-only operation,
-  `prefers-reduced-motion` and `prefers-contrast` support, and a dark theme that
-  follows the OS.
-
-## Configuration
-
-Everything runtime-configurable lives in `assets/config.js`:
-
-```js
-window.EYESEARCH_CONFIG = {
-  apiBase: "https://eyesearch-backend.onrender.com", // "" = same origin
-  limit: 10,        // 1-50, server caps it
-  debounce: 320,    // ms after the last keystroke
-  minChars: 2,      // shortest query that triggers a search
-};
+```
+web/                                   android/ (app/src/main/java/com/eyesearch/app/)
+├── index.html                         ├── MainActivity.kt
+├── app.js            composition root ├── core/network/SearchApiClient.kt
+├── base.css                           ├── home/searchbar/
+├── config/api-config.js               ├── home/mediatools/
+├── home/                              ├── home/quicklinks/
+│   ├── search-input/                  ├── home/feedcards/
+│   ├── media-tools/                   ├── menu/theme/
+│   ├── quick-links/                   ├── menu/language/
+│   └── feed-cards/                    ├── profile/auth/
+├── menu/                              ├── profile/history/
+│   ├── theme-selector/                ├── results/tabs/
+│   └── language-selector/             ├── results/resultcards/
+├── profile/                           └── results/metainfo/
+│   ├── account/
+│   └── local-history/
+└── results/
+    ├── nav-tabs/
+    ├── result-cards/
+    └── meta-info/
 ```
 
-Point `apiBase` at your own deployment, or set it to `""` when the UI is served
-from the same origin as the API. No rebuild is needed — edit the file and
-redeploy the static bundle.
+## Modules
 
-The gateway already allows all origins (CORS `*`), so no proxy is required.
-Because Render's free tier sleeps when idle, the very first search after a quiet
-period can take several seconds while the instance wakes; the UI shows skeletons
-for as long as that takes and then renders normally.
+| Module | Web | Android | What it does |
+| --- | --- | --- | --- |
+| home / search-input | `search-input.js` + `.css` | `SearchBarView.kt`, `SearchBarViewModel.kt` | Debounced search-as-you-type, Enter to search, clear, `/` and `Esc` shortcuts |
+| home / media-tools | `mic-handler.js`, `lens-handler.js` | `VoiceSearchHelper.kt`, `CameraSearchHelper.kt` | Voice input; camera capture |
+| home / quick-links | `quick-links.js` | `QuickLinksAdapter.kt` | Curated shortcut grid, India-first |
+| home / feed-cards | `weather-card.js`, `news-card.js` | `HomeFeedAdapter.kt` | Live weather (Open-Meteo, keyless) and headlines from our own gateway |
+| menu / theme-selector | `theme-toggle.js` | `ThemePreferences.kt` | System / Light / Dark, persisted |
+| menu / language-selector | `lang-switcher.js` | `LocaleHelper.kt` | Kannada / English, persisted, `lang="kn"` applied to Kannada text |
+| profile / account | `auth-placeholder.js` | `AccountPlaceholder.kt` | States plainly that auth does not exist yet |
+| profile / local-history | `history-manager.js`, `clear-history.js` | `LocalHistoryDao.kt`, `HistoryRepository.kt` | Device-only history, de-duplicated, with a confirmed clear |
+| results / nav-tabs | `tab-switcher.js` | `ResultsTabRow.kt` | ALL vs AI (AI = `/v1/retrieve`, the token-optimised payload) |
+| results / result-cards | `web-card.js` + `card-renderer.css` | `ResultsAdapter.kt`, `ResultCardViewHolder.kt` | Title, breadcrumb, snippet with highlights, favicon fallback, media |
+| results / meta-info | `latency-badge.js` | `LatencyIndicatorView.kt` | `5 results · found in 0.43s`, degraded and cached badges, provider names |
 
-## Run locally
+Two files sit outside the module tree because they are wiring, not features:
+`web/app.js` (composition root, the counterpart of `MainActivity.kt`) and
+`web/base.css` (design tokens and shared layout, the counterpart of the Android
+theme attributes). Two module-level stylesheets live beside their module:
+`home/search-input/search-input.css` and `results/result-cards/card-renderer.css`.
+
+## Gateway
+
+Both clients talk to the same backend — https://github.com/Eyesearch/Eyesearch-Backend
+— currently deployed at `https://eyesearch-backend.onrender.com`:
+
+- `GET /v1/search?q=&limit=&page=` — structured cards (web UI, Android results)
+- `POST /v1/retrieve {query, format}` — token-optimised context (the AI tab)
+
+Errors arrive as `{"error": {"code", "message", "retryable"}}`; both clients map
+the code to a plain-language message and offer a retry only when it is retryable.
+
+## Run the web client
 
 ```bash
-python3 -m http.server 5173
-# open http://localhost:5173
+cd web
+python3 -m http.server 5173     # then open http://localhost:5173
 ```
 
-To search against a local backend instead, set `apiBase` to
-`http://localhost:8000` in `assets/config.js`.
+No build step, no `node_modules`. `web/config/api-config.js` holds the API base
+(and honours `window.EYESEARCH_API_BASE`, including `""` for same-origin, which
+is how local development and the automated UI test point at a stub).
 
-## Deploy
+Deploy: Netlify and Vercel configs at the repository root publish `web/`;
+Cloudflare Pages and any static host need the `web/` directory as the site root
+(`web/_headers` carries the security and cache policy).
 
-| Host | How |
-| --- | --- |
-| Vercel | Import the repo. Framework preset: **Other**. No build command, output directory `.` (honoured by `vercel.json`). |
-| Netlify | Import the repo, or `netlify deploy --prod`. `netlify.toml` sets publish `.` and no build. |
-| Cloudflare Pages | Connect the repo. Build command: none. Output directory: `/`. `_headers` applies the security and cache policy. |
-| GitHub Pages | Settings → Pages → deploy from branch `main`, folder `/ (root)`. |
-| Any static host | Upload `index.html`, `assets/`, `robots.txt`. |
+## Build the Android app
 
-`index.html` and the assets carry cache headers that force revalidation of the
-HTML, so a deploy is picked up immediately, while `assets/` may be cached for an
-hour.
-
-## API contract used
-
-```
-GET {apiBase}/v1/search?q={query}&limit={limit}
+```bash
+cd android
+./gradlew :app:assembleDebug
 ```
 
-```json
-{
-  "query": "isro",
-  "page": 1,
-  "limit": 10,
-  "total_estimate": 24,
-  "took_ms": 412,
-  "degraded": false,
-  "cache_hit": false,
-  "providers": { "duckduckgo": 8, "bing": 2 },
-  "results": [
-    {
-      "id": "duckduckgo:8f2a1c9d04",
-      "title": "Indian Space Research Organisation",
-      "url": "https://www.isro.gov.in/",
-      "snippet": "The space agency of India…",
-      "source": "duckduckgo",
-      "kind": "web",
-      "poster_url": null,
-      "thumbnail_url": null,
-      "published_at": null,
-      "score": 1.0
-    }
-  ]
-}
-```
+AGP 8.7.3, Kotlin 2.0.21, compileSdk 35, minSdk 24. The API base is a
+`buildConfigField` in `android/app/build.gradle.kts`.
 
-Errors arrive as `{"error": {"code": "...", "message": "...", "retryable": true}}`
-with `code` in `bad_request`, `rate_limited`, `provider_unavailable`,
-`database_error`, `not_found`, `internal`.
+## What is real, and what is not
 
-Fields the UI tolerates being absent: `degraded`, `cache_hit`, `providers`,
-`kind`, `thumbnail_url`, `poster_url`, `took_ms`. Only `results[].url` is
-required for a card to render; a result without a title falls back to its URL.
+Real: search, both result contracts, degraded/cached/provider reporting, theme
+and language persistence, device history with de-duplication and a confirmed
+clear, live weather, live headlines, keyboard shortcuts, Kannada rendering.
 
-## Files
+Not real yet, and said so in the UI rather than faked: **account sign-in** (no
+auth endpoints on the gateway) and **visual search** (camera capture returns a
+real image, but there is no vision endpoint, so both clients explain that
+instead of returning invented results). Voice search depends on the platform:
+Chrome/Edge on the web, a system recogniser on Android, and both disable the
+control when it is unavailable.
 
-```
-index.html            markup, templates for result cards and skeletons
-assets/styles.css     design tokens, light/dark, layout, skeletons
-assets/app.js         search state, fetch/abort, rendering, URL sync
-assets/config.js      apiBase, limit, debounce, minChars
-assets/favicon.svg    icon
-netlify.toml · vercel.json · _headers   deploy and cache policy
-robots.txt
-```
+## Verification
 
-`window.EyeSearchUI.search("query")` is exposed so the page can be driven from
-other scripts or a test harness.
+`web/` is covered by an integration suite that serves the real files over HTTP
+against a stubbed gateway and drives headless Chromium — 41 assertions across the
+home view, the results view, error/empty paths, XSS safety, and each module's
+behaviour in isolation. The Android sources are a scaffold: they are structurally
+complete but were not compiled in this environment (no Android SDK), so treat
+`./gradlew assembleDebug` as the first thing to run.

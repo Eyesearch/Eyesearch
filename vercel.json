@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "web",
   "cleanUrls": true,
   "trailingSlash": false,
   "headers": [
@@ -8,12 +9,12 @@
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" }
+        { "key": "Permissions-Policy", "value": "geolocation=(), camera=(self), microphone=(self)" }
       ]
     },
     {
-      "source": "/assets/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }]
+      "source": "/config/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }]
     },
     {
       "source": "/index.html",

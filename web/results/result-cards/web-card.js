@@ -1,0 +1,170 @@
+/**
+ * results/result-cards — one structured result card.
+ *
+ * Everything here is built with DOM nodes and textContent: server strings are
+ * never parsed as HTML, so a hostile result title cannot inject markup. Query
+ * terms are highlighted with <mark> by splitting text nodes, not by innerHTML.
+ */
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch (error) {
+    return "";
+  }
+}
+
+function breadcrumbParts(url) {
+  const parts = [];
+  const host = hostOf(url);
+  if (host) parts.push({ text: host, leaf: false });
+  try {
+    const segments = new URL(url).pathname.split("/").filter(Boolean).slice(0, 2);
+    segments.forEach((segment, index) => {
+      let text = decodeURIComponent(segment)
+        .replace(/\.(html?|php|aspx?|jsp|txt)$/i, "")
+        .replace(/[-_]+/g, " ")
+        .trim();
+      if (!text) text = decodeURIComponent(segment);
+      if (text.length > 34) text = `${text.slice(0, 33)}…`;
+      parts.push({ text, leaf: index === segments.length - 1 });
+    });
+  } catch (error) {
+    /* unparsable URL: host-only breadcrumb is enough */
+  }
+  return parts;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightInto(target, text, terms) {
+  target.textContent = "";
+  const value = String(text == null ? "" : text);
+  const usable = (terms || []).filter((term) => term && term.length > 1);
+  if (usable.length === 0) {
+    target.appendChild(document.createTextNode(value));
+    return;
+  }
+  const pattern = new RegExp(`(${usable.map(escapeRegExp).join("|")})`, "gi");
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(value)) !== null) {
+    if (match.index > cursor) target.appendChild(document.createTextNode(value.slice(cursor, match.index)));
+    const mark = document.createElement("mark");
+    mark.textContent = match[0];
+    target.appendChild(mark);
+    cursor = match.index + match[0].length;
+    if (pattern.lastIndex === match.index) pattern.lastIndex += 1;
+  }
+  if (cursor < value.length) target.appendChild(document.createTextNode(value.slice(cursor)));
+}
+
+const KIND_LABEL = { video: "Video", image: "Image", news: "News", film: "Film", document: "PDF" };
+
+/**
+ * @param {object} result one entry from /v1/search results[]
+ * @param {{terms?: string[], compact?: boolean}} options
+ * @returns {HTMLElement}
+ */
+export function createWebCard(result, options = {}) {
+  const item = document.createElement("article");
+  item.className = "card";
+  if (options.compact) item.classList.add("card-compact");
+
+  const url = typeof result.url === "string" ? result.url : "";
+  const title = result.title || url || "Untitled result";
+  const host = hostOf(url);
+
+  const poster = result.thumbnail_url || result.poster_url;
+  if (poster) {
+    const media = document.createElement("div");
+    media.className = "card-media";
+    const image = document.createElement("img");
+    image.src = poster;
+    image.alt = "";
+    image.loading = "lazy";
+    image.addEventListener("error", () => media.remove());
+    media.appendChild(image);
+    item.appendChild(media);
+  }
+
+  const body = document.createElement("div");
+  body.className = "card-body";
+
+  const top = document.createElement("div");
+  top.className = "card-top";
+
+  const favicon = document.createElement("span");
+  favicon.className = "card-favicon";
+  if (host) {
+    const icon = document.createElement("img");
+    icon.src = `https://icons.duckduckgo.com/ip3/${host}.ico`;
+    icon.alt = "";
+    icon.width = 16;
+    icon.height = 16;
+    icon.loading = "lazy";
+    icon.addEventListener("error", () => {
+      if (!icon.dataset.retried) {
+        icon.dataset.retried = "1";
+        icon.src = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(host)}`;
+        return;
+      }
+      const tile = document.createElement("span");
+      tile.className = "card-favicon-tile";
+      tile.textContent = host.charAt(0);
+      icon.replaceWith(tile);
+    });
+    favicon.appendChild(icon);
+  } else {
+    const tile = document.createElement("span");
+    tile.className = "card-favicon-tile";
+    tile.textContent = "?";
+    favicon.appendChild(tile);
+  }
+
+  const crumb = document.createElement("span");
+  crumb.className = "card-breadcrumb";
+  breadcrumbParts(url).forEach((part, index) => {
+    if (index > 0) {
+      const sep = document.createElement("span");
+      sep.className = "crumb-sep";
+      sep.textContent = "›";
+      crumb.appendChild(sep);
+    }
+    const span = document.createElement("span");
+    if (part.leaf) span.className = "crumb-leaf";
+    span.textContent = part.text;
+    crumb.appendChild(span);
+  });
+
+  top.append(favicon, crumb);
+
+  const label = KIND_LABEL[result.kind];
+  if (label) {
+    const kind = document.createElement("span");
+    kind.className = "card-kind";
+    kind.textContent = label;
+    top.appendChild(kind);
+  }
+
+  const heading = document.createElement("h3");
+  heading.className = "card-title";
+  const link = document.createElement("a");
+  link.href = url || "#";
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = title;
+  if (result.source) link.title = `Source: ${result.source}`;
+  heading.appendChild(link);
+
+  const snippet = document.createElement("p");
+  snippet.className = "card-snippet";
+  highlightInto(snippet, result.snippet || "", options.terms);
+  if (!result.snippet) snippet.hidden = true;
+
+  body.append(top, heading, snippet);
+  item.appendChild(body);
+  return item;
+}

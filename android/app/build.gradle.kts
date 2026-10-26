@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.eyesearch.app"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.eyesearch.app"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
         // The gateway this build talks to; override per flavour when needed.
@@ -21,6 +21,11 @@ android {
     buildFeatures {
         buildConfig = true
         viewBinding = true
+    }
+
+    // Keep the debug APK small and deterministic; the app has no native code.
+    packaging {
+        resources.excludes += setOf("META-INF/*.kotlin_module", "DebugProbesKt.bin")
     }
 
     buildTypes {

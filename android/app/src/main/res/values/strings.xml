@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EyeSearch</string>
+    <string name="search_hint">Search the web…</string>
+    <string name="search_action">Search</string>
+    <string name="clear_search">Clear search</string>
+    <string name="voice_search">Voice</string>
+    <string name="camera_search">Camera</string>
+</resources>

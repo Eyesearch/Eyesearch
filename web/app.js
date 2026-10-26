@@ -323,6 +323,19 @@ if (initialQuery && initialQuery.trim()) {
   showHome();
 }
 
+/* ----------------------------- service worker ----------------------------- */
+
+// Progressive enhancement: the app works without it, but with it the shell and
+// every module load offline and repeat visits skip the network for static code.
+// Registered from a module so the URL resolves against the page, not the script.
+if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((error) => {
+      console.warn("EyeSearch: service worker registration failed", error);
+    });
+  });
+}
+
 // Exposed for tests and for embedding the page elsewhere.
 window.EyeSearchApp = {
   search: (query, options) => runSearch(query, options),

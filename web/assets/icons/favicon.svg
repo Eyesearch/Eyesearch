@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="EyeSearch">
+  <!-- Maskable-safe: all art sits within the central 80% safe zone, so a
+       circular or squircle launcher mask never clips the eye. -->
+  <rect width="64" height="64" fill="#0B0C0E" />
+  <circle cx="30" cy="30" r="11" fill="none" stroke="#FFFFFF" stroke-width="4.5" />
+  <circle cx="30" cy="30" r="3.8" fill="#5B8DEF" />
+  <path d="M38.5 38.5 46 46" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" />
+</svg>

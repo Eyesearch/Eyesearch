@@ -82,8 +82,23 @@ cd android
 ./gradlew :app:assembleDebug
 ```
 
-AGP 8.7.3, Kotlin 2.0.21, compileSdk 35, minSdk 24. The API base is a
-`buildConfigField` in `android/app/build.gradle.kts`.
+AGP 8.7.3, Kotlin 2.0.21, KSP 2.0.21-1.0.28, compileSdk 34, targetSdk 34,
+minSdk 24, JVM target 17. The Gradle wrapper (8.9) is committed, so no local
+Gradle install is needed. The API base is a `buildConfigField` in
+`android/app/build.gradle.kts`.
+
+Launcher icons are pure vector resources — an adaptive icon for API 26+
+(`res/mipmap-anydpi-v26/`) and a layer-list fallback for API 24–25
+(`res/mipmap-anydpi/`) built from `res/drawable/ic_launcher_background.xml` and
+`ic_launcher_foreground.xml`. No bitmaps, so no density folders to keep in sync.
+
+### Debug APK from CI
+
+`.github/workflows/android-build.yml` builds the debug APK on every push to
+`main` that touches `android/**` (and on manual dispatch): JDK 17 Temurin,
+`chmod +x gradlew`, `./gradlew :app:assembleDebug --stacktrace`, then uploads
+`app-debug.apk` as the **EyeSearch-Debug-APK** artifact, downloadable from the
+run's summary page.
 
 ## What is real, and what is not
 

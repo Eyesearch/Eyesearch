@@ -4,7 +4,7 @@
   display: inline-flex;
   gap: 4px;
   padding: 3px;
-  margin-bottom: 12px;
+  margin: 4px 0 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--bg-subtle);
@@ -27,6 +27,15 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* results header: its own search bar, then the All / AI tabs */
+.results-header {
+  margin-bottom: 10px;
+}
+
+.results-header .search-form {
+  margin-bottom: 12px;
+}
+
 .meta-bar {
   display: flex;
   flex-wrap: wrap;
@@ -41,25 +50,32 @@
 #result-cards {
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
+#result-cards > :last-child {
+  margin-bottom: 0;
+}
+
+/* Every result is its own isolated 4-sided box. */
 .card {
   display: flex;
   gap: 14px;
-  padding: 14px 16px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  transition: border-color var(--dur) ease, background var(--dur) ease;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--card-bg);
+  transition: border-color var(--dur) ease, box-shadow var(--dur) ease;
 }
 
 .card:hover {
-  border-color: var(--border);
-  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 .card-compact {
-  padding: 10px 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
 }
 
 .card-skeleton {

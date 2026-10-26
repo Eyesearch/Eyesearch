@@ -51,6 +51,7 @@ const STRINGS = {
   historyTitle: "Recent searches",
   historyEmpty: "No searches yet on this device.",
   clearHistory: "Clear history",
+  openHistory: "View all history",
   historyCleared: "Search history cleared.",
   remove: "Remove",
   tabAll: "All",

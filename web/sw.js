@@ -8,7 +8,7 @@
  *   - Cache-first is safe here because every asset is versioned by CACHE_NAME;
  *     bump it and the old cache is dropped on activate.
  */
-const CACHE_NAME = "eyesearch-v2";
+const CACHE_NAME = "eyesearch-v3";
 const OFFLINE_URL = "./index.html";
 
 const PRECACHE = [
@@ -31,6 +31,7 @@ const PRECACHE = [
   "./profile/account/auth-placeholder.js",
   "./profile/local-history/history-manager.js",
   "./profile/local-history/clear-history.js",
+  "./profile/local-history/history-view.js",
   "./results/nav-tabs/tab-switcher.js",
   "./results/result-cards/web-card.js",
   "./results/result-cards/card-renderer.css",

@@ -26,28 +26,28 @@
 <body>
   <a class="skip-link" href="#results-region">Skip to results</a>
 
+  <!-- Top bar: back arrow · centered wordmark · theme + profile -->
   <header class="app-bar">
-    <div class="app-bar-start">
-      <!-- Back to the home hero; only visible in the results view. -->
+    <div class="app-bar-left">
       <button class="icon-button back-button" type="button" data-action="go-home" aria-label="Back to home" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <a class="app-brand" href="./" data-action="go-home" aria-label="eyesearch home">
-        <span class="app-brand-mark" aria-hidden="true"></span>
-        <span class="app-brand-text">eyesearch</span>
-      </a>
     </div>
 
-    <div class="app-bar-actions">
-      <!-- menu module: single theme toggle -->
+    <a class="app-brand" href="./" data-action="go-home" aria-label="eyesearch home">
+      <span class="app-brand-mark" aria-hidden="true"></span>
+      <span class="app-brand-text">eyesearch</span>
+    </a>
+
+    <div class="app-bar-right">
       <div class="mount mount-menu" data-mount="menu"></div>
-      <button class="icon-button" type="button" data-action="toggle-profile" aria-expanded="false" aria-controls="profile-panel" aria-label="Profile and recent searches">
+      <button class="icon-button" type="button" data-action="toggle-profile" aria-expanded="false" aria-controls="profile-panel" aria-label="Profile and history">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.8 20c.9-3.5 3.8-5.4 7.2-5.4s6.3 1.9 7.2 5.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
       </button>
     </div>
   </header>
 
-  <!-- profile module: account placeholder + local history -->
+  <!-- profile popover: account placeholder, recent searches, entry to the history screen -->
   <aside class="profile-panel" id="profile-panel" hidden>
     <div class="mount" data-mount="account"></div>
     <div class="mount" data-mount="history"></div>
@@ -66,12 +66,26 @@
       </div>
     </section>
 
-    <!-- 4. results -->
+    <!-- 4. results: own search bar, then tabs, then cards -->
     <section class="results" id="results-region" hidden aria-label="Results">
-      <div class="mount" data-mount="nav-tabs"></div>
+      <div class="results-header">
+        <div class="mount" data-mount="results-search"></div>
+        <div class="mount" data-mount="nav-tabs"></div>
+      </div>
       <div class="mount" data-mount="meta-info"></div>
       <div class="mount" data-mount="result-cards" id="result-cards"></div>
       <div class="notice" id="app-notice" hidden></div>
+    </section>
+
+    <!-- full-screen history -->
+    <section class="history-view" id="history-view" hidden aria-label="Search history">
+      <div class="history-topbar">
+        <button class="icon-button back-button" type="button" data-action="close-history" aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <h2 class="history-title">Search history</h2>
+      </div>
+      <div class="mount" data-mount="history-full"></div>
     </section>
   </main>
 

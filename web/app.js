@@ -1,15 +1,16 @@
 /**
- * Composition root. This file owns application state and wires the four modules
- * together; every module below is independent and only talks through the small
- * callbacks declared here.
+ * Composition root. Owns application state and wires the modules together; each
+ * module is independent and talks back only through the callbacks declared here.
  *
  *   home/search-input      → onSearch(query)   (Enter or the search button only)
  *   home/media-tools       → onTranscript(text) / onImage(file), inside the bar
  *   home/quick-links       → navigation only
  *   home/feed-cards        → weather (Open-Meteo) + headlines (our own gateway)
  *   menu/theme-selector    → one toggle button, system default
- *   profile/*              → auth placeholder + local search history
+ *   profile/*              → account placeholder, popover summary, history screen
  *   results/*              → tabs, cards, latency/provider badges
+ *
+ * Three views: home hero, results (own search bar + tabs + cards), history.
  */
 
 import { searchWeb, retrieveContext, errorTextFor, ApiError } from "./config/api-config.js";
@@ -24,6 +25,7 @@ import { t, getLang } from "./menu/language-selector/lang-switcher.js";
 import { mountAuthPlaceholder } from "./profile/account/auth-placeholder.js";
 import { addHistory } from "./profile/local-history/history-manager.js";
 import { mountClearHistory } from "./profile/local-history/clear-history.js";
+import { mountHistoryView } from "./profile/local-history/history-view.js";
 import { mountTabSwitcher } from "./results/nav-tabs/tab-switcher.js";
 import { createWebCard } from "./results/result-cards/web-card.js";
 import { mountLatencyBadge } from "./results/meta-info/latency-badge.js";
@@ -36,16 +38,19 @@ const state = {
   controller: null,
   token: 0,
   lastPayload: null,
+  view: "home",
 };
 
 const els = {
   home: document.getElementById("home-section"),
   results: document.getElementById("results-region"),
+  history: document.getElementById("history-view"),
   cards: document.getElementById("result-cards"),
   notice: document.getElementById("app-notice"),
   profilePanel: document.getElementById("profile-panel"),
   profileToggle: document.querySelector('[data-action="toggle-profile"]'),
-  backButton: document.querySelector('button[data-action="go-home"]'),
+  backButton: document.querySelector('.app-bar button[data-action="go-home"]'),
+  closeHistory: document.querySelector('[data-action="close-history"]'),
   brand: document.querySelector('a[data-action="go-home"]'),
 };
 
@@ -65,15 +70,23 @@ function showNotice(message, { ok = false } = {}) {
   els.notice.hidden = !message;
 }
 
+/** @param {"home"|"results"|"history"} view */
 function setView(view) {
-  const results = view === "results";
-  if (els.home) els.home.hidden = results;
-  if (els.results) els.results.hidden = !results;
-  if (els.backButton) els.backButton.hidden = !results;
+  state.view = view;
+  if (els.home) els.home.hidden = view !== "home";
+  if (els.results) els.results.hidden = view !== "results";
+  if (els.history) els.history.hidden = view !== "history";
+  if (els.backButton) els.backButton.hidden = view !== "results";
 }
 
 function setBusy(busy) {
   if (els.cards) els.cards.setAttribute("aria-busy", busy ? "true" : "false");
+}
+
+function closeProfilePanel() {
+  if (!els.profilePanel || els.profilePanel.hidden) return;
+  els.profilePanel.hidden = true;
+  els.profileToggle?.setAttribute("aria-expanded", "false");
 }
 
 function renderSkeletons(count = 4) {
@@ -150,6 +163,12 @@ function syncUrl(query, push) {
   }
 }
 
+/** Keep the home bar and the results bar showing the same query. */
+function setInputs(value) {
+  homeInput.setValue(value);
+  resultsInput.setValue(value);
+}
+
 /* --------------------------------- results -------------------------------- */
 
 async function runSearch(query, { tab = state.tab } = {}) {
@@ -168,12 +187,15 @@ async function runSearch(query, { tab = state.tab } = {}) {
   const controller = new AbortController();
   state.controller = controller;
 
+  setInputs(cleaned);
   setView("results");
+  closeProfilePanel();
   syncUrl(cleaned, true);
   showNotice("");
   renderSkeletons();
   setBusy(true);
   latency.setLoading();
+  addHistory(cleaned);
 
   const started = performance.now();
   try {
@@ -237,21 +259,57 @@ function goHome({ focus = true } = {}) {
   showNotice("");
   setView("home");
   syncUrl("", false);
-  if (els.profilePanel && !els.profilePanel.hidden) {
-    els.profilePanel.hidden = true;
-    els.profileToggle?.setAttribute("aria-expanded", "false");
-  }
-  if (focus && searchInput) searchInput.focus();
+  closeProfilePanel();
+  if (focus) homeInput.focus();
+}
+
+/* --------------------------------- history -------------------------------- */
+
+function openHistory() {
+  closeProfilePanel();
+  setView("history");
+  historyView.refresh();
+}
+
+function closeHistory() {
+  setView(state.query ? "results" : "home");
 }
 
 /* --------------------------------- mounting -------------------------------- */
 
-const searchInput = mountSearchInput(mount("search-input"), {
-  onSearch: (query) => {
-    addHistory(query);
-    runSearch(query);
-  },
+const homeInput = mountSearchInput(mount("search-input"), {
+  id: "search-input",
+  onSearch: (query) => runSearch(query),
   onClear: () => goHome({ focus: false }),
+});
+
+const resultsInput = mountSearchInput(mount("results-search"), {
+  id: "results-search-input",
+  compact: true,
+  onSearch: (query) => runSearch(query),
+  onClear: () => {
+    resultsInput.clear();
+    homeInput.clear();
+    goHome({ focus: false });
+  },
+});
+
+// Voice and camera sit inside both bars.
+mountMicButton(homeInput.actions, {
+  onTranscript: (text) => runSearch(text),
+  onError: (message) => showNotice(message),
+});
+mountLensButton(homeInput.actions, {
+  onImage: (file) => showNotice(t("lensNotice").replace("{name}", file && file.name ? file.name : "image")),
+  onError: (message) => showNotice(message),
+});
+mountMicButton(resultsInput.actions, {
+  onTranscript: (text) => runSearch(text),
+  onError: (message) => showNotice(message),
+});
+mountLensButton(resultsInput.actions, {
+  onImage: (file) => showNotice(t("lensNotice").replace("{name}", file && file.name ? file.name : "image")),
+  onError: (message) => showNotice(message),
 });
 
 const latency = mountLatencyBadge(mount("meta-info"));
@@ -263,21 +321,10 @@ const tabs = mountTabSwitcher(mount("nav-tabs"), {
   },
 });
 
-mountMicButton(searchInput.actions, {
-  onTranscript: (text) => {
-    searchInput.setValue(text);
-    addHistory(text);
-    runSearch(text);
+const historyView = mountHistoryView(mount("history-full"), {
+  onPick: (query) => {
+    runSearch(query);
   },
-  onError: (message) => showNotice(message),
-});
-
-mountLensButton(searchInput.actions, {
-  onImage: (file) => {
-    // The gateway has no vision endpoint yet, so say so instead of pretending.
-    showNotice(t("lensNotice").replace("{name}", file && file.name ? file.name : "image"));
-  },
-  onError: (message) => showNotice(message),
 });
 
 mountQuickLinks(mount("quick-links"), {});
@@ -290,33 +337,21 @@ feed.append(weatherMount, newsMount);
 mount("feed-cards").appendChild(feed);
 
 mountWeatherCard(weatherMount, {});
-mountNewsCard(newsMount, {
-  onOpen: (query) => {
-    searchInput.setValue(query);
-    addHistory(query);
-    runSearch(query);
-  },
-});
+mountNewsCard(newsMount, { onOpen: (query) => runSearch(query) });
 
 mountThemeToggle(mount("menu"));
 
 mountAuthPlaceholder(mount("account"));
 mountClearHistory(mount("history"), {
-  onPick: (query) => {
-    searchInput.setValue(query);
-    addHistory(query);
-    runSearch(query);
-  },
-  onCleared: () => {
-    if (els.profilePanel) els.profilePanel.hidden = true;
-    els.profileToggle?.setAttribute("aria-expanded", "false");
-  },
+  onOpenHistory: () => openHistory(),
+  onPick: (query) => runSearch(query),
+  onCleared: () => closeProfilePanel(),
 });
 
 /* ------------------------------ navigation --------------------------------- */
 
 els.backButton?.addEventListener("click", () => goHome());
-
+els.closeHistory?.addEventListener("click", () => closeHistory());
 els.brand?.addEventListener("click", (event) => {
   event.preventDefault();
   goHome();
@@ -331,26 +366,21 @@ els.profileToggle?.addEventListener("click", () => {
 document.addEventListener("click", (event) => {
   if (!els.profilePanel || els.profilePanel.hidden) return;
   const inside = els.profilePanel.contains(event.target) || els.profileToggle?.contains(event.target);
-  if (!inside) {
-    els.profilePanel.hidden = true;
-    els.profileToggle?.setAttribute("aria-expanded", "false");
-  }
+  if (!inside) closeProfilePanel();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.view === "history") closeHistory();
 });
 
 window.addEventListener("popstate", (event) => {
   const query = (event.state && event.state.q) || new URLSearchParams(location.search).get("q") || "";
-  if (query) {
-    searchInput.setValue(query);
-    runSearch(query);
-  } else {
-    goHome({ focus: false });
-  }
+  if (query) runSearch(query);
+  else goHome({ focus: false });
 });
 
 /* ----------------------------- service worker ------------------------------ */
 
-// Progressive enhancement: the app works without it, but with it the shell and
-// every module load offline and repeat visits skip the network for static code.
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch((error) => {
@@ -366,7 +396,6 @@ setView("home");
 
 const initialQuery = new URLSearchParams(location.search).get("q");
 if (initialQuery && initialQuery.trim()) {
-  searchInput.setValue(initialQuery);
   runSearch(initialQuery);
 }
 
@@ -374,5 +403,7 @@ if (initialQuery && initialQuery.trim()) {
 window.EyeSearchApp = {
   search: (query, options) => runSearch(query, options),
   home: () => goHome(),
+  openHistory: () => openHistory(),
+  closeHistory: () => closeHistory(),
   getState: () => ({ ...state, controller: undefined }),
 };

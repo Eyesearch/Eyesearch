@@ -17,15 +17,18 @@ const CLEAR_ICON =
 
 /**
  * @param {HTMLElement} container
- * @param {{onSearch: (query: string) => void, onClear?: () => void}} handlers
+ * @param {{onSearch: (query: string) => void, onClear?: () => void,
+ *          id?: string, compact?: boolean}} handlers
  */
 export function mountSearchInput(container, handlers) {
   if (!container) throw new Error("mountSearchInput: container is required");
   const onSearch = handlers.onSearch;
   const onClear = handlers.onClear || (() => {});
 
+  const fieldId = handlers.id || "search-input";
+
   const form = document.createElement("form");
-  form.className = "search-form";
+  form.className = handlers.compact ? "search-form search-form-compact" : "search-form";
   form.setAttribute("role", "search");
   form.autocomplete = "off";
 
@@ -36,7 +39,7 @@ export function mountSearchInput(container, handlers) {
   const input = document.createElement("input");
   input.type = "search";
   input.name = "q";
-  input.id = "search-input";
+  input.id = fieldId;
   input.className = "search-field";
   input.inputMode = "search";
   input.enterKeyHint = "search";
@@ -66,11 +69,14 @@ export function mountSearchInput(container, handlers) {
 
   form.append(iconWrap, input, clear, actions, submit);
 
-  const hint = document.createElement("p");
-  hint.className = "search-hint";
-  hint.textContent = t("searchHint");
-
-  container.append(form, hint);
+  if (handlers.compact) {
+    container.append(form);
+  } else {
+    const hint = document.createElement("p");
+    hint.className = "search-hint";
+    hint.textContent = t("searchHint");
+    container.append(form, hint);
+  }
 
   const syncClear = () => {
     clear.hidden = input.value.length === 0;

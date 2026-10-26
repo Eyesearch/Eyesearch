@@ -1,16 +1,17 @@
 /**
- * profile/local-history — the history panel and its destructive action.
+ * profile/local-history — the profile popover's history summary.
  *
- * Renders recent searches with individual remove buttons plus a "clear all"
- * button that asks for confirmation first, because clearing is irreversible.
+ * Shows the five most recent searches with per-item delete, a "Clear history"
+ * action, and the entry point to the full-screen history (time-range deletion
+ * lives there, not here).
  */
 
 import { getHistory, removeHistoryItem, clearHistory, onHistoryChange } from "./history-manager.js";
-import { t, onLangChange } from "../../menu/language-selector/lang-switcher.js";
+import { t } from "../../menu/language-selector/lang-switcher.js";
 
 /**
  * @param {HTMLElement} container
- * @param {{onCleared?: () => void, onPick?: (query: string) => void}} handlers
+ * @param {{onOpenHistory?: () => void, onPick?: (query: string) => void, onCleared?: () => void}} handlers
  */
 export function mountClearHistory(container, handlers = {}) {
   if (!container) throw new Error("mountClearHistory: container is required");
@@ -26,16 +27,22 @@ export function mountClearHistory(container, handlers = {}) {
   clearButton.type = "button";
   clearButton.className = "feed-action";
   clearButton.dataset.action = "clear-history";
+  clearButton.textContent = t("clearHistory");
   header.append(heading, clearButton);
 
   const list = document.createElement("ul");
   list.className = "history-list";
 
-  const status = document.createElement("p");
-  status.className = "feed-muted";
-  status.hidden = true;
+  const openButton = document.createElement("button");
+  openButton.type = "button";
+  openButton.className = "feed-action history-open";
+  openButton.dataset.action = "open-history";
+  openButton.textContent = t("openHistory");
+  openButton.addEventListener("click", () => {
+    if (typeof handlers.onOpenHistory === "function") handlers.onOpenHistory();
+  });
 
-  section.append(header, list, status);
+  section.append(header, list, openButton);
   container.appendChild(section);
 
   const render = () => {
@@ -52,7 +59,7 @@ export function mountClearHistory(container, handlers = {}) {
       list.appendChild(empty);
       return;
     }
-    entries.forEach((entry) => {
+    entries.slice(0, 5).forEach((entry) => {
       const item = document.createElement("li");
       item.className = "history-item";
 
@@ -68,7 +75,7 @@ export function mountClearHistory(container, handlers = {}) {
       remove.type = "button";
       remove.className = "history-remove";
       remove.setAttribute("aria-label", `${t("remove")}: ${entry.query}`);
-      remove.textContent = "×";
+      remove.textContent = "✕";
       remove.addEventListener("click", () => {
         removeHistoryItem(entry.query);
         render();
@@ -83,18 +90,15 @@ export function mountClearHistory(container, handlers = {}) {
     const entries = getHistory();
     if (entries.length === 0) return;
     const confirmed = typeof window.confirm === "function"
-      ? window.confirm(`${t("clearHistory")} — ${entries.length} ${entries.length === 1 ? t("result") : t("results")}?`)
+      ? window.confirm(`Clear all ${entries.length} searches? This cannot be undone.`)
       : true;
     if (!confirmed) return;
     clearHistory();
     render();
-    status.hidden = false;
-    status.textContent = t("historyCleared");
     if (typeof handlers.onCleared === "function") handlers.onCleared();
   });
 
   onHistoryChange(render);
-  onLangChange(render);
   render();
 
   return { element: section, refresh: render };

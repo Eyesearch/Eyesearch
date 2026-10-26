@@ -28,18 +28,3 @@ data class SearchResultItem(
             (listOf(host) + segments).filter { it.isNotBlank() }.joinToString(" › ")
         }.getOrDefault(url)
 }
-
-data class SearchMeta(
-    val query: String,
-    val tookMs: Long? = null,
-    val degraded: Boolean = false,
-    val cacheHit: Boolean = false,
-    val providers: Map<String, Int> = emptyMap(),
-    val failedProviders: List<String> = emptyList(),
-    val totalEstimate: Int? = null,
-)
-
-data class SearchPayload(
-    val meta: SearchMeta,
-    val results: List<SearchResultItem>,
-)

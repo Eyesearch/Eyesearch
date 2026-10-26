@@ -3,7 +3,7 @@ package com.eyesearch.app.results.metainfo
 import android.content.Context
 import android.util.AttributeSet
 import android.widget.TextView
-import com.eyesearch.app.results.resultcards.SearchMeta
+import com.eyesearch.app.core.api.SearchMeta
 import java.util.Locale
 
 /**

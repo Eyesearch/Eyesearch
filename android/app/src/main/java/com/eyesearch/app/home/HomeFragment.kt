@@ -17,6 +17,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.core.os.bundleOf
 import com.eyesearch.app.MainActivity
+import com.eyesearch.app.R
 import com.eyesearch.app.databinding.FragmentHomeBinding
 import com.eyesearch.app.home.feedcards.NewsFeedAdapter
 import com.eyesearch.app.home.mediatools.CameraSearchHelper

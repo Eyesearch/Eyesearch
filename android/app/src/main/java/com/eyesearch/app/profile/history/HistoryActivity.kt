@@ -10,6 +10,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.eyesearch.app.core.database.LocalHistoryEntity
 import com.eyesearch.app.databinding.ActivityHistoryBinding
 import kotlinx.coroutines.launch
 

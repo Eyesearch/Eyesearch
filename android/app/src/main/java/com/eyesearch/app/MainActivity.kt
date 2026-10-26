@@ -12,13 +12,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-import androidx.fragment.app.FragmentManager
+import androidx.core.os.bundleOf
+import androidx.navigation.NavController
+import androidx.navigation.fragment.NavHostFragment
 import com.eyesearch.app.databinding.ActivityMainBinding
 import com.eyesearch.app.menu.theme.ThemePreferences
 import com.eyesearch.app.profile.ProfileFragment
 import com.eyesearch.app.profile.history.HistoryActivity
-import com.eyesearch.app.results.ResultsFragment
-import com.eyesearch.app.home.HomeFragment
 import com.eyesearch.app.webbridge.EyeSearchWebView
 
 /**
@@ -35,6 +35,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var themePreferences: ThemePreferences
     private lateinit var webView: EyeSearchWebView
 
+    /** The navigation graph owns home ↔ results; this activity only directs it. */
+    private val navController: NavController
+        get() = (supportFragmentManager.findFragmentById(R.id.nav_host) as NavHostFragment).navController
+
     override fun onCreate(savedInstanceState: Bundle?) {
         themePreferences = ThemePreferences(this)
         themePreferences.apply()
@@ -50,12 +54,6 @@ class MainActivity : AppCompatActivity() {
             webView,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
         )
-
-        if (savedInstanceState == null) {
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, HomeFragment())
-                .commit()
-        }
 
         installBackHandling()
         handleIntent(intent)
@@ -74,16 +72,15 @@ class MainActivity : AppCompatActivity() {
         val cleaned = query.trim()
         if (cleaned.isEmpty()) return
         closeWebApp()
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, ResultsFragment.newInstance(cleaned))
-            .addToBackStack(null)
-            .commit()
+        navController.navigate(R.id.results_dest, bundleOf("query" to cleaned))
     }
 
-    /** Return to the home hero, clearing the results back stack. */
+    /** Return to the home hero, popping any results destination. */
     fun showHome() {
         closeWebApp()
-        supportFragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+        if (!navController.popBackStack(R.id.home_dest, false)) {
+            navController.navigate(R.id.home_dest)
+        }
     }
 
     fun openProfile() {

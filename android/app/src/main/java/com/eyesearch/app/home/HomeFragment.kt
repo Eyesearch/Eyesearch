@@ -13,7 +13,9 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.core.os.bundleOf
 import com.eyesearch.app.MainActivity
 import com.eyesearch.app.databinding.FragmentHomeBinding
 import com.eyesearch.app.home.feedcards.NewsFeedAdapter
@@ -55,7 +57,9 @@ class HomeFragment : Fragment() {
         binding.newsList.adapter = newsAdapter
         binding.newsList.isNestedScrollingEnabled = false
 
-        binding.searchBar.onSearch = { query -> activity.showResults(query) }
+        binding.searchBar.onSearch = { query ->
+            findNavController().navigate(R.id.action_home_to_results, bundleOf("query" to query))
+        }
         binding.searchBar.onVoice = { voiceHelper.start("en-IN") }
         binding.searchBar.onCamera = { cameraHelper.capture() }
         binding.searchBar.setVoiceAvailable(voiceHelper.isAvailable())
@@ -81,7 +85,7 @@ class HomeFragment : Fragment() {
             activity = requireActivity() as ComponentActivity,
             onTranscript = { text ->
                 binding.searchBar.setText(text)
-                (requireActivity() as MainActivity).showResults(text)
+                findNavController().navigate(R.id.action_home_to_results, bundleOf("query" to text))
             },
             onUnavailable = { message -> toast(message) },
         )

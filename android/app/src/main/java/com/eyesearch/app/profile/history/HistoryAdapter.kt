@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.eyesearch.app.core.database.LocalHistoryEntity
 import com.eyesearch.app.databinding.ItemHistoryBinding
 import java.util.concurrent.TimeUnit
 

@@ -2,7 +2,9 @@ package com.eyesearch.app.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyesearch.app.core.api.ApiResult
 import com.eyesearch.app.core.api.SearchApiClient
+import com.eyesearch.app.core.util.Constants
 import com.eyesearch.app.home.feedcards.NewsItem
 import com.eyesearch.app.home.feedcards.WeatherCardView
 import kotlinx.coroutines.Dispatchers
@@ -49,8 +51,7 @@ class HomeViewModel(
     }
 
     private suspend fun fetchWeather(): WeatherCardView.State = withContext(Dispatchers.IO) {
-        val url = "https://api.open-meteo.com/v1/forecast?latitude=12.9716&longitude=77.5946" +
-            "&current=temperature_2m,weather_code&timezone=auto"
+        val url = Constants.WEATHER_URL
         try {
             http.newCall(Request.Builder().url(url).build()).execute().use { response ->
                 val body = response.body?.string().orEmpty()
@@ -75,13 +76,14 @@ class HomeViewModel(
         }
     }
 
-    private suspend fun fetchHeadlines(): List<NewsItem> = try {
-        api.search(HEADLINE_QUERY, limit = 4).results.map { item ->
-            NewsItem(title = item.title, url = item.url, host = item.host)
+    private suspend fun fetchHeadlines(): List<NewsItem> =
+        when (val result = api.search(Constants.HEADLINE_QUERY, limit = Constants.HEADLINE_LIMIT)) {
+            is ApiResult.Success -> result.data.results.map { item ->
+                NewsItem(title = item.title, url = item.url, host = item.host)
+            }
+
+            is ApiResult.Failure -> emptyList()
         }
-    } catch (error: Exception) {
-        emptyList()
-    }
 
     private fun describeWeather(code: Int): String = when (code) {
         0 -> "Clear sky"
@@ -95,7 +97,5 @@ class HomeViewModel(
         else -> "Weather"
     }
 
-    companion object {
-        const val HEADLINE_QUERY = "top news headlines India today"
-    }
+
 }

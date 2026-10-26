@@ -2,9 +2,10 @@ package com.eyesearch.app.results
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyesearch.app.core.api.ApiError
+import com.eyesearch.app.core.api.ApiResult
 import com.eyesearch.app.core.api.SearchApiClient
-import com.eyesearch.app.core.api.SearchError
-import com.eyesearch.app.results.resultcards.SearchPayload
+import com.eyesearch.app.core.api.SearchResponse
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,8 +27,8 @@ data class ResultsUiState(
     val query: String = "",
     val tab: ResultsTab = ResultsTab.ALL,
     val status: ResultsStatus = ResultsStatus.Idle,
-    val payload: SearchPayload? = null,
-    val error: SearchError? = null,
+    val payload: SearchResponse? = null,
+    val error: ApiError? = null,
 ) {
     val isLoading: Boolean get() = status is ResultsStatus.Loading
 }
@@ -69,14 +70,18 @@ class ResultsViewModel(
         _state.value = _state.value.copy(query = cleaned, tab = tab, status = ResultsStatus.Loading)
 
         inFlight = viewModelScope.launch {
-            try {
-                val payload = if (tab == ResultsTab.AI) api.retrieve(cleaned) else api.search(cleaned)
-                if (myToken != token) return@launch
-                val status = if (payload.results.isEmpty()) ResultsStatus.Empty else ResultsStatus.Success
-                _state.value = _state.value.copy(status = status, payload = payload, error = null)
-            } catch (error: SearchError) {
-                if (myToken != token) return@launch
-                _state.value = _state.value.copy(status = ResultsStatus.Failed, error = error)
+            val result = if (tab == ResultsTab.AI) api.retrieve(cleaned) else api.search(cleaned)
+            if (myToken != token) return@launch
+            when (result) {
+                is ApiResult.Success -> {
+                    val payload = result.data
+                    val status = if (payload.results.isEmpty()) ResultsStatus.Empty else ResultsStatus.Success
+                    _state.value = _state.value.copy(status = status, payload = payload, error = null)
+                }
+
+                is ApiResult.Failure -> {
+                    _state.value = _state.value.copy(status = ResultsStatus.Failed, error = result.error)
+                }
             }
         }
     }

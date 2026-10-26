@@ -5,7 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.eyesearch.app.databinding.ItemNewsBinding
+import com.eyesearch.app.databinding.ItemNewsCardBinding
 
 /** One live headline, produced by our own gateway (no third-party news API). */
 data class NewsItem(
@@ -22,7 +22,7 @@ class NewsFeedAdapter(
 ) : ListAdapter<NewsItem, NewsFeedAdapter.Holder>(DIFF) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
-        val binding = ItemNewsBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemNewsCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return Holder(binding)
     }
 
@@ -30,7 +30,7 @@ class NewsFeedAdapter(
         holder.bind(getItem(position), onOpen)
     }
 
-    class Holder(private val binding: ItemNewsBinding) : RecyclerView.ViewHolder(binding.root) {
+    class Holder(private val binding: ItemNewsCardBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: NewsItem, onOpen: (NewsItem) -> Unit) {
             binding.newsTitle.text = item.title
             binding.newsHost.text = item.host

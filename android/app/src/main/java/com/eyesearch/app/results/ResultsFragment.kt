@@ -14,9 +14,9 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.eyesearch.app.MainActivity
-import com.eyesearch.app.core.api.SearchError
 import com.eyesearch.app.databinding.FragmentResultsBinding
 import com.eyesearch.app.home.mediatools.CameraSearchHelper
 import com.eyesearch.app.home.mediatools.VoiceSearchHelper
@@ -112,18 +112,19 @@ class ResultsFragment : Fragment() {
                 adapter.submitList(emptyList())
                 binding.latency.clear()
                 binding.statusText.visibility = View.VISIBLE
-                binding.statusText.text = when (val error = state.error) {
-                    is SearchError.ProviderUnavailable -> "The search providers are not responding. ${error.message}"
-                    is SearchError.RateLimited -> "Too many searches right now. Try again in a moment."
-                    is SearchError.Network -> "Can't reach the search gateway. Check your connection."
-                    else -> "The search could not be completed. ${error?.message.orEmpty()}"
+                val error = state.error
+                binding.statusText.text = if (error == null) {
+                    "The search could not be completed."
+                } else {
+                    "${error.userMessage} ${error.message}".trim()
                 }
             }
         }
     }
 
     private fun backToHome() {
-        (requireActivity() as MainActivity).showHome()
+        val popped = findNavController().popBackStack()
+        if (!popped) (requireActivity() as MainActivity).showHome()
     }
 
     private val voiceHelper: VoiceSearchHelper by lazy {

@@ -2,6 +2,8 @@ package com.eyesearch.app.profile.history
 
 import android.content.Context
 import com.eyesearch.app.core.database.AppDatabase
+import com.eyesearch.app.core.database.LocalHistoryDao
+import com.eyesearch.app.core.database.LocalHistoryEntity
 import kotlinx.coroutines.flow.Flow
 import java.util.concurrent.TimeUnit
 

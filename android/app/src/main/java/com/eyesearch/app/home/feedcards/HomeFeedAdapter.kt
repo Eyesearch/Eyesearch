@@ -99,7 +99,7 @@ class HomeFeedAdapter(
         fun bind(item: FeedItem.Headline, onClick: (FeedItem.Headline) -> Unit) {
             title.text = item.title
             host.text = item.host
-            root.setOnClickListener { onClick(item) }
+            itemView.setOnClickListener { onClick(item) }
         }
     }
 

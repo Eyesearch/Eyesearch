@@ -388,6 +388,9 @@ class MainActivity : AppCompatActivity() {
     private fun localeTag(): String =
         if (LocaleHelper.currentLanguage() == LocaleHelper.KANNADA) "kn-IN" else "en-IN"
 
+    private fun hostOf(url: String): String =
+        runCatching { java.net.URI(url).host?.removePrefix("www.").orEmpty() }.getOrDefault("")
+
     private fun termsFor(query: String): List<String> =
         query.split(Regex("\\s+")).filter { it.length > 1 }.take(6)
 

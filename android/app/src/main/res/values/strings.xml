@@ -6,4 +6,22 @@
     <string name="clear_search">Clear search</string>
     <string name="voice_search">Voice</string>
     <string name="camera_search">Camera</string>
+    <string name="home_tagline">One query. The whole web. Clean results.</string>
+    <string name="quick_links">Quick links</string>
+    <string name="live_headlines">Live headlines</string>
+    <string name="back">Back</string>
+    <string name="back_to_home">Back to home</string>
+    <string name="open_web_app">Open the web app</string>
+    <string name="toggle_theme">Toggle theme</string>
+    <string name="profile_and_history">Profile and history</string>
+    <string name="account_title">Account</string>
+    <string name="account_body">Sign-in is not wired up yet. Search, history and settings all work without an account.</string>
+    <string name="open_history">Search history</string>
+    <string name="clear_history">Clear all history</string>
+    <string name="close">Close</string>
+    <string name="search_history">Search history</string>
+    <string name="history_empty">No searches yet on this device.</string>
+    <string name="delete">Delete</string>
+    <string name="no_results">No results. Try different words.</string>
+    <string name="retry">Try again</string>
 </resources>

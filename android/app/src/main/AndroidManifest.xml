@@ -67,6 +67,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".profile.history.HistoryActivity"
+            android:exported="false"
+            android:label="@string/search_history" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

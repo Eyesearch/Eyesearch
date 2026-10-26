@@ -71,9 +71,24 @@ No build step, no `node_modules`. `web/config/api-config.js` holds the API base
 (and honours `window.EYESEARCH_API_BASE`, including `""` for same-origin, which
 is how local development and the automated UI test point at a stub).
 
-Deploy: Netlify and Vercel configs at the repository root publish `web/`;
-Cloudflare Pages and any static host need the `web/` directory as the site root
-(`web/_headers` carries the security and cache policy).
+Deploy: `.github/workflows/pages.yml` publishes `web/` to GitHub Pages on every
+push that touches it, so `https://eyesearch.github.io/Eyesearch/` serves the
+search UI directly. Netlify and Vercel configs at the repository root also point
+at `web/`; Cloudflare Pages and any static host need the `web/` directory as the
+site root (`web/_headers` carries the security and cache policy). A root
+`index.html` redirects to `./web/` for hosts that serve the repository root
+instead of the app directory.
+
+### Installable app (PWA)
+
+`web/manifest.json` declares the standalone app (name, `./index.html` start URL,
+`#121212` theme and background, the vector eye icon as `any maskable`).
+`web/sw.js` precaches the shell and every module (23 entries), serves static
+assets cache-first, uses network-first for navigations with an offline shell
+fallback, and never touches `/v1/*` — search results are always live. The worker
+is registered from `app.js` on `load`, guarded by a `serviceWorker` check, so the
+app works normally without it. Every path in the shell is relative (`./`), which
+is what lets the whole thing run under the Pages subpath `/Eyesearch/web/`.
 
 ## Build the Android app
 

@@ -5,7 +5,7 @@ import android.util.AttributeSet
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.eyesearch.app.home.searchbar.ResultsTab
+import com.eyesearch.app.results.ResultsTab
 
 /**
  * ALL / AI selector. Two equal-width tabs with a selected state; the AI tab

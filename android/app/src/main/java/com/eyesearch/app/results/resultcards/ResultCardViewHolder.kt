@@ -1,42 +1,53 @@
 package com.eyesearch.app.results.resultcards
 
-import android.content.Context
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
-import android.util.TypedValue
-import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.view.View
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.eyesearch.app.core.network.SearchResultItem
+import com.eyesearch.app.R
+import com.eyesearch.app.databinding.ItemSearchResultBinding
 
 /**
- * One result card, built in code: breadcrumb (host › path), title, snippet.
+ * One result inside its own 4-sided card (item_search_result.xml).
  *
- * Snippets are plain [TextView] text with a highlight span — never parsed as
- * HTML — so a hostile title cannot inject anything into the view hierarchy.
+ * Snippets are plain text with a highlight span — never parsed as HTML — so a
+ * hostile title cannot inject anything into the view hierarchy.
  */
 class ResultCardViewHolder(
-    private val root: LinearLayout,
-    private val breadcrumb: TextView,
-    private val title: TextView,
-    private val snippet: TextView,
-) : RecyclerView.ViewHolder(root) {
+    private val binding: ItemSearchResultBinding,
+) : RecyclerView.ViewHolder(binding.root) {
 
     fun bind(item: SearchResultItem, terms: List<String>, onClick: (SearchResultItem) -> Unit) {
-        breadcrumb.text = breadcrumbFor(item.url)
-        title.text = item.title
-        snippet.text = highlight(item.snippet, terms)
-        snippet.visibility = if (item.snippet.isBlank()) android.view.View.GONE else android.view.View.VISIBLE
-        root.setOnClickListener { onClick(item) }
-        root.contentDescription = "${item.title}. ${breadcrumbFor(item.url)}"
+        binding.breadcrumb.text = item.breadcrumb
+        binding.faviconTile.text = item.host.take(1).uppercase().ifBlank { "?" }
+        binding.resultTitle.text = item.title
+        binding.resultSnippet.text = highlight(item.snippet, terms)
+        binding.resultSnippet.visibility = if (item.snippet.isBlank()) View.GONE else View.VISIBLE
+
+        val kind = when (item.kind) {
+            "video" -> "Video"
+            "image" -> "Image"
+            "news" -> "News"
+            "film" -> "Film"
+            "document" -> "PDF"
+            else -> ""
+        }
+        binding.resultKind.text = kind
+        binding.resultKind.visibility = if (kind.isBlank()) View.GONE else View.VISIBLE
+
+        val poster = item.thumbnailUrl ?: item.posterUrl
+        binding.resultThumb.visibility = if (poster == null) View.GONE else View.VISIBLE
+
+        binding.root.contentDescription = "${item.title}. ${item.breadcrumb}"
+        binding.cardRoot.setOnClickListener { onClick(item) }
     }
 
     private fun highlight(text: String, terms: List<String>): CharSequence {
         if (text.isBlank() || terms.isEmpty()) return text
         val spannable = SpannableString(text)
-        val colour = resolveHighlight()
+        val colour = ContextCompat.getColor(binding.root.context, R.color.highlight)
         terms.filter { it.length > 1 }.forEach { term ->
             var start = text.indexOf(term, ignoreCase = true)
             while (start >= 0) {
@@ -50,50 +61,5 @@ class ResultCardViewHolder(
             }
         }
         return spannable
-    }
-
-    private fun resolveHighlight(): Int {
-        val value = TypedValue()
-        val resolved = root.context.theme.resolveAttribute(android.R.attr.textColorHighlight, value, true)
-        return if (resolved) value.data else 0x33FFC107
-    }
-
-    companion object {
-        fun create(context: Context): ResultCardViewHolder {
-            val column = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(28, 22, 28, 22)
-            }
-            val breadcrumb = TextView(context).apply {
-                textSize = 12f
-                alpha = 0.7f
-            }
-            val title = TextView(context).apply {
-                textSize = 17f
-                setPadding(0, 4, 0, 4)
-            }
-            val snippet = TextView(context).apply {
-                textSize = 14f
-                alpha = 0.85f
-                maxLines = 3
-            }
-            column.addView(breadcrumb)
-            column.addView(title)
-            column.addView(snippet)
-            return ResultCardViewHolder(column, breadcrumb, title, snippet)
-        }
-
-        fun breadcrumbFor(url: String): String {
-            return try {
-                val parsed = java.net.URI(url)
-                val host = parsed.host?.removePrefix("www.").orEmpty()
-                val segments = parsed.path.orEmpty().split("/").filter { it.isNotBlank() }.take(2)
-                (listOf(host) + segments.map { it.replace(Regex("\\.(html?|php|aspx?)$"), "").replace('-', ' ') })
-                    .filter { it.isNotBlank() }
-                    .joinToString(" › ")
-            } catch (error: Exception) {
-                url
-            }
-        }
     }
 }

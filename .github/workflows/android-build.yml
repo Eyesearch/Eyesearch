@@ -1,6 +1,6 @@
-name: Android Debug APK
+name: Android APK
 
-# Builds the debug APK for every change under android/ so the app can be
+# Builds debug and release APKs for every change under android/ so the app can be
 # installed from the Actions tab without a local Android SDK.
 on:
   push:
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   build:
-    name: Assemble debug APK
+    name: Assemble debug + release APKs
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -47,10 +47,21 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
 
-      - name: Upload APK artifact
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --stacktrace --no-daemon
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: EyeSearch-Debug-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload release APK (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: EyeSearch-Release-APK
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14

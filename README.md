@@ -8,6 +8,8 @@ easy to mirror in the other.
 web/                                   android/ (app/src/main/java/com/eyesearch/app/)
 ├── index.html                         ├── MainActivity.kt
 ├── app.js            composition root ├── core/network/SearchApiClient.kt
+├── core/database/AppDatabase.kt, LocalHistoryEntity.kt
+├── webbridge/EyeSearchWebView.kt
 ├── base.css                           ├── home/searchbar/
 ├── config/api-config.js               ├── home/mediatools/
 ├── home/                              ├── home/quicklinks/
@@ -36,7 +38,7 @@ web/                                   android/ (app/src/main/java/com/eyesearch
 | home / quick-links | `quick-links.js` | `QuickLinksAdapter.kt` | Curated shortcut grid, India-first |
 | home / feed-cards | `weather-card.js`, `news-card.js` | `HomeFeedAdapter.kt` | Live weather (Open-Meteo, keyless) and headlines from our own gateway |
 | menu / theme-selector | `theme-toggle.js` | `ThemePreferences.kt` | System / Light / Dark, persisted |
-| menu / language-selector | `lang-switcher.js` | `LocaleHelper.kt` | Kannada / English, persisted, `lang="kn"` applied to Kannada text |
+| menu / language-selector | `lang-switcher.js` | `LocaleHelper.kt` | English-only copy table (the switcher is gone; Kannada text still renders) |
 | profile / account | `auth-placeholder.js` | `AccountPlaceholder.kt` | States plainly that auth does not exist yet |
 | profile / local-history | `history-manager.js`, `clear-history.js` | `LocalHistoryDao.kt`, `HistoryRepository.kt` | Device-only history, de-duplicated, with a confirmed clear |
 | results / nav-tabs | `tab-switcher.js` | `ResultsTabRow.kt` | ALL vs AI (AI = `/v1/retrieve`, the token-optimised payload) |
@@ -90,6 +92,16 @@ is registered from `app.js` on `load`, guarded by a `serviceWorker` check, so th
 app works normally without it. Every path in the shell is relative (`./`), which
 is what lets the whole thing run under the Pages subpath `/Eyesearch/web/`.
 
+### Native behaviour
+
+`MainActivity` is edge-to-edge (inset-aware padding, no title bar) and handles
+home ↔ results navigation itself: hardware/gesture back returns to the hero from
+results, and from the hero it exits. It also answers `android.intent.action.WEB_SEARCH`
+and `ACTION_SEARCH` (query in `SearchManager.QUERY`), plus the
+`eyesearch://search?q=` deep link, so the app can act as the device's search
+target. `webbridge/EyeSearchWebView.kt` embeds the hosted web client behind a
+toolbar action, opening any third-party link in the user's browser.
+
 ## Build the Android app
 
 ```bash
@@ -109,11 +121,12 @@ Launcher icons are pure vector resources — an adaptive icon for API 26+
 
 ### Debug APK from CI
 
-`.github/workflows/android-build.yml` builds the debug APK on every push to
+`.github/workflows/android-build.yml` builds **both** APKs on every push to
 `main` that touches `android/**` (and on manual dispatch): JDK 17 Temurin,
-`chmod +x gradlew`, `./gradlew :app:assembleDebug --stacktrace`, then uploads
-`app-debug.apk` as the **EyeSearch-Debug-APK** artifact, downloadable from the
-run's summary page.
+`chmod +x gradlew`, `./gradlew :app:assembleDebug`, then
+`./gradlew :app:assembleRelease`. It uploads `app-debug.apk` as
+**EyeSearch-Debug-APK** and the unsigned release APK as
+**EyeSearch-Release-APK**, both downloadable from the run's summary page.
 
 ## What is real, and what is not
 

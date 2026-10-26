@@ -1,15 +1,22 @@
 package com.eyesearch.app
 
+import android.app.SearchManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -28,12 +35,12 @@ import com.eyesearch.app.home.searchbar.SearchBarView
 import com.eyesearch.app.home.searchbar.SearchBarViewModel
 import com.eyesearch.app.home.searchbar.SearchStatus
 import com.eyesearch.app.home.searchbar.SearchUiState
-import com.eyesearch.app.menu.language.LocaleHelper
 import com.eyesearch.app.menu.theme.ThemePreferences
 import com.eyesearch.app.profile.history.HistoryRepository
 import com.eyesearch.app.results.metainfo.LatencyIndicatorView
 import com.eyesearch.app.results.resultcards.ResultsAdapter
 import com.eyesearch.app.results.tabs.ResultsTabRow
+import com.eyesearch.app.webbridge.EyeSearchWebView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,9 +52,10 @@ import java.util.concurrent.TimeUnit
 /**
  * Android composition root — the counterpart of web/app.js.
  *
- * It builds the four modules' views, wires them to [SearchBarViewModel], and
- * owns the small amount of glue: history recording, deep links, the theme and
- * language switches, and the home feed (weather + headlines).
+ * Edge-to-edge native search: a home hero (search bar, media tools, quick links,
+ * live feed) that becomes a results screen, with hardware/gesture back returning
+ * home. It also answers the system search intents (WEB_SEARCH / SEARCH) and the
+ * eyesearch:// deep link, so the app can be the device's search target.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -55,6 +63,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var history: HistoryRepository
     private lateinit var themePreferences: ThemePreferences
 
+    private lateinit var root: FrameLayout
     private lateinit var searchBar: SearchBarView
     private lateinit var resultsAdapter: ResultsAdapter
     private lateinit var resultsList: RecyclerView
@@ -64,6 +73,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var homeSection: View
     private lateinit var resultsSection: View
     private lateinit var feedAdapter: HomeFeedAdapter
+    private lateinit var backButton: ImageButton
+    private lateinit var webView: EyeSearchWebView
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
@@ -74,57 +85,46 @@ class MainActivity : AppCompatActivity() {
         themePreferences = ThemePreferences(this)
         themePreferences.apply()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         history = HistoryRepository(this)
 
         setContentView(buildUi())
+        applyWindowInsets()
         wireSearch()
+        installBackHandling()
         observeState()
         loadFeed()
-        handleDeepLink(intent)
+        handleIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleDeepLink(intent)
+        setIntent(intent)
+        handleIntent(intent)
     }
 
     // ------------------------------------------------------------------ UI
 
     private fun buildUi(): View {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, 0, 0, 0)
-        }
+        root = FrameLayout(this)
 
-        root.addView(buildTopBar())
+        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(buildTopBar())
 
         val scroll = androidx.core.widget.NestedScrollView(this)
-        val column = LinearLayout(this).apply {
+        val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(16), dp(16), dp(24))
         }
-        scroll.addView(column)
+        scroll.addView(content)
 
-        // home module
         homeSection = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         searchBar = SearchBarView(this)
         (homeSection as LinearLayout).addView(searchBar)
 
-        val mediaRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(12), 0, 0)
-        }
-        val voiceButton = Button(this).apply { text = "Voice" }
-        val cameraButton = Button(this).apply { text = "Camera" }
-        mediaRow.addView(voiceButton)
-        mediaRow.addView(cameraButton)
-        voiceButton.setOnClickListener { voiceHelper.start(localeTag()) }
-        cameraButton.setOnClickListener { cameraHelper.capture() }
-        (homeSection as LinearLayout).addView(mediaRow)
-
         val quickLinks = RecyclerView(this).apply {
             layoutManager = LinearLayoutManager(this@MainActivity, RecyclerView.HORIZONTAL, false)
-            adapter = QuickLinksAdapter(onOpen = { openUrl(it) }).also {
+            adapter = QuickLinksAdapter(onOpen = { openUrl(it.url) }).also {
                 it.submitList(QuickLinksAdapter.DEFAULT_LINKS)
             }
             setPadding(0, dp(16), 0, dp(16))
@@ -135,15 +135,15 @@ class MainActivity : AppCompatActivity() {
             searchBar.setText(item.title)
             runSearch(item.title)
         })
-        val feed = RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = feedAdapter
-            isNestedScrollingEnabled = false
-        }
-        (homeSection as LinearLayout).addView(feed)
-        column.addView(homeSection)
+        (homeSection as LinearLayout).addView(
+            RecyclerView(this).apply {
+                layoutManager = LinearLayoutManager(this@MainActivity)
+                adapter = feedAdapter
+                isNestedScrollingEnabled = false
+            },
+        )
+        content.addView(homeSection)
 
-        // results module
         resultsSection = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
@@ -171,38 +171,64 @@ class MainActivity : AppCompatActivity() {
             addView(statusView)
             addView(resultsList)
         }
-        column.addView(resultsSection)
+        content.addView(resultsSection)
 
-        root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        column.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        root.addView(column)
+
+        webView = EyeSearchWebView(this).apply {
+            visibility = View.GONE
+            onExternalLink = { uri -> openUrl(uri.toString()) }
+        }
+        root.addView(webView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         return root
     }
 
     private fun buildTopBar(): View {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(16), dp(10), dp(8), dp(10))
+            setPadding(dp(8), dp(10), dp(8), dp(10))
         }
+
+        backButton = ImageButton(this).apply {
+            setImageResource(android.R.drawable.ic_media_previous)
+            contentDescription = "Back to home"
+            setBackgroundColor(0)
+            visibility = View.GONE
+            setOnClickListener { goHome() }
+        }
+        bar.addView(backButton, LinearLayout.LayoutParams(dp(44), dp(44)))
+
         val title = TextView(this).apply {
-            text = "EyeSearch"
+            text = getString(R.string.app_name)
             textSize = 18f
+            setPadding(dp(6), 0, 0, 0)
         }
-        val spacer = View(this)
         bar.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        bar.addView(spacer)
-        bar.addView(Button(this).apply {
-            text = "Aa"
-            contentDescription = "Language"
-            setOnClickListener {
-                val next = if (LocaleHelper.currentLanguage() == LocaleHelper.KANNADA) LocaleHelper.ENGLISH else LocaleHelper.KANNADA
-                LocaleHelper.setLanguage(next)
-            }
-        })
-        bar.addView(Button(this).apply {
-            text = "◐"
-            contentDescription = "Theme"
-            setOnClickListener { cycleTheme() }
-        })
+
+        bar.addView(ImageButton(this).apply {
+            setImageResource(android.R.drawable.ic_menu_view)
+            contentDescription = "Open the web app"
+            setBackgroundColor(0)
+            setOnClickListener { openWebApp() }
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+
+        bar.addView(ImageButton(this).apply {
+            setImageResource(android.R.drawable.ic_menu_compass)
+            contentDescription = "Toggle theme"
+            setBackgroundColor(0)
+            setOnClickListener { toggleTheme() }
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+
         return bar
+    }
+
+    private fun applyWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            view.updatePadding(top = bars.top, bottom = bars.bottom, left = bars.left, right = bars.right)
+            insets
+        }
     }
 
     // --------------------------------------------------------------- wiring
@@ -210,12 +236,11 @@ class MainActivity : AppCompatActivity() {
     private fun wireSearch() {
         searchBar.onSearch = { query -> runSearch(query) }
         searchBar.onQueryChanged = { viewModel.onQueryChanged(it) }
-        searchBar.onCleared = {
-            viewModel.clear()
-            resultsSection.visibility = View.GONE
-            homeSection.visibility = View.VISIBLE
-            latency.clear()
-        }
+        searchBar.onCleared = { goHome(focus = false) }
+        // Voice and camera are inside the bar, like the web client.
+        searchBar.onVoice = { voiceHelper.start(localeTag()) }
+        searchBar.onCamera = { cameraHelper.capture() }
+        searchBar.setVoiceAvailable(voiceHelper.isAvailable())
     }
 
     private val voiceHelper: VoiceSearchHelper by lazy {
@@ -240,14 +265,50 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun installBackHandling() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    when {
+                        webView.visibility == View.VISIBLE -> closeWebApp()
+                        resultsSection.visibility == View.VISIBLE -> goHome()
+                        else -> {
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                        }
+                    }
+                }
+            },
+        )
+    }
+
     private fun runSearch(query: String) {
         val cleaned = query.trim()
-        if (cleaned.isEmpty()) return
+        if (cleaned.isEmpty()) {
+            goHome()
+            return
+        }
         homeSection.visibility = View.GONE
         resultsSection.visibility = View.VISIBLE
+        backButton.visibility = View.VISIBLE
+        statusView.visibility = View.GONE
         latency.showLoading()
         lifecycleScope.launch { history.add(cleaned) }
         viewModel.search(cleaned)
+    }
+
+    /** Reset to the home hero: clear results, the field and the loading state. */
+    private fun goHome(focus: Boolean = true) {
+        viewModel.clear()
+        resultsAdapter.submitList(emptyList())
+        latency.clear()
+        statusView.visibility = View.GONE
+        resultsSection.visibility = View.GONE
+        homeSection.visibility = View.VISIBLE
+        backButton.visibility = View.GONE
+        tabs.select(ResultsTab.ALL)
+        if (focus) searchBar.focusInput()
     }
 
     private fun observeState() {
@@ -259,16 +320,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun render(state: SearchUiState) {
-        when (val status = state.status) {
+        when (state.status) {
             is SearchStatus.Idle -> {
                 resultsSection.visibility = View.GONE
                 homeSection.visibility = View.VISIBLE
+                backButton.visibility = View.GONE
                 statusView.visibility = View.GONE
                 latency.clear()
             }
 
             is SearchStatus.Loading -> {
                 resultsSection.visibility = View.VISIBLE
+                backButton.visibility = View.VISIBLE
                 statusView.visibility = View.GONE
                 latency.showLoading()
                 resultsAdapter.submitList(emptyList())
@@ -282,8 +345,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             is SearchStatus.Empty -> {
-                val payload = state.payload
-                if (payload != null) latency.update(payload.meta, 0)
+                state.payload?.let { latency.update(it.meta, 0) }
                 resultsAdapter.submitList(emptyList())
                 statusView.visibility = View.VISIBLE
                 statusView.text = "No results for “${state.query}”. Try different words."
@@ -293,8 +355,7 @@ class MainActivity : AppCompatActivity() {
                 resultsAdapter.submitList(emptyList())
                 latency.clear()
                 statusView.visibility = View.VISIBLE
-                val error = state.error
-                statusView.text = when (error) {
+                statusView.text = when (val error = state.error) {
                     is com.eyesearch.app.core.network.SearchError.ProviderUnavailable ->
                         "The search providers are not responding. ${error.message}"
 
@@ -308,6 +369,18 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // ------------------------------------------------------------ web bridge
+
+    private fun openWebApp(query: String? = null) {
+        webView.visibility = View.VISIBLE
+        if (query.isNullOrBlank()) webView.loadApp() else webView.loadSearch(query = query)
+    }
+
+    private fun closeWebApp() {
+        webView.visibility = View.GONE
+        webView.stopLoading()
     }
 
     // ----------------------------------------------------------------- feed
@@ -345,9 +418,7 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun fetchHeadlines(): List<FeedItem.Headline> = try {
         val payload = SearchApiClient().search("top news headlines India today", limit = 4)
-        payload.results.map { item ->
-            FeedItem.Headline(item.title, item.url, hostOf(item.url))
-        }
+        payload.results.map { item -> FeedItem.Headline(item.title, item.url, hostOf(item.url)) }
     } catch (error: Exception) {
         emptyList()
     }
@@ -364,19 +435,33 @@ class MainActivity : AppCompatActivity() {
         else -> "Weather"
     }
 
-    // ---------------------------------------------------------------- misc
+    // ---------------------------------------------------------------- intents
 
-    private fun handleDeepLink(intent: Intent?) {
-        val data: Uri = intent?.data ?: return
-        if (data.scheme != "eyesearch") return
-        val query = data.getQueryParameter("q").orEmpty()
-        if (query.isNotBlank()) {
-            searchBar.setText(query)
-            runSearch(query)
+    /**
+     * Three entry points: the launcher, the system search intents
+     * (WEB_SEARCH / SEARCH, which deliver the query in [SearchManager.QUERY]),
+     * and the eyesearch://search?q= deep link.
+     */
+    private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
+        val action = intent.action
+        val searchQuery = when (action) {
+            Intent.ACTION_SEARCH, Intent.ACTION_WEB_SEARCH -> intent.getStringExtra(SearchManager.QUERY)
+            Intent.ACTION_VIEW -> intent.data?.takeIf { it.scheme == "eyesearch" }?.getQueryParameter("q")
+            else -> null
+        }.orEmpty().trim()
+
+        if (searchQuery.isNotEmpty()) {
+            searchBar.setText(searchQuery)
+            runSearch(searchQuery)
         }
     }
 
-    private fun cycleTheme() {
+    // ---------------------------------------------------------------- misc
+
+    private fun localeTag(): String = "en-IN"
+
+    private fun toggleTheme() {
         val next = when (themePreferences.current()) {
             ThemePreferences.Mode.SYSTEM -> ThemePreferences.Mode.LIGHT
             ThemePreferences.Mode.LIGHT -> ThemePreferences.Mode.DARK
@@ -385,14 +470,11 @@ class MainActivity : AppCompatActivity() {
         themePreferences.set(next)
     }
 
-    private fun localeTag(): String =
-        if (LocaleHelper.currentLanguage() == LocaleHelper.KANNADA) "kn-IN" else "en-IN"
+    private fun termsFor(query: String): List<String> =
+        query.split(Regex("\\s+")).filter { it.length > 1 }.take(6)
 
     private fun hostOf(url: String): String =
         runCatching { java.net.URI(url).host?.removePrefix("www.").orEmpty() }.getOrDefault("")
-
-    private fun termsFor(query: String): List<String> =
-        query.split(Regex("\\s+")).filter { it.length > 1 }.take(6)
 
     private fun openUrl(url: String) {
         runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
@@ -407,4 +489,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    override fun onDestroy() {
+        if (::webView.isInitialized) webView.destroySafely()
+        super.onDestroy()
+    }
 }

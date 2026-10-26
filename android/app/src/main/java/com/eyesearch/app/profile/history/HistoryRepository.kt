@@ -1,6 +1,8 @@
 package com.eyesearch.app.profile.history
 
 import android.content.Context
+import com.eyesearch.app.core.database.AppDatabase
+import com.eyesearch.app.core.database.LocalHistoryEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -14,15 +16,17 @@ class HistoryRepository(
     private val limit: Int = DEFAULT_LIMIT,
 ) {
 
-    constructor(context: Context) : this(EyeSearchDatabase.get(context).historyDao())
+    constructor(context: Context) : this(AppDatabase.get(context).localHistoryDao())
 
-    fun observeRecent(): Flow<List<HistoryEntry>> = dao.recent(limit)
+    fun observeRecent(): Flow<List<LocalHistoryEntity>> = dao.recent(limit)
+
+    suspend fun recent(): List<LocalHistoryEntity> = dao.recentOnce(limit)
 
     suspend fun add(query: String) {
         val cleaned = query.trim().replace(Regex("\\s+"), " ")
         if (cleaned.length < 2) return
         dao.upsert(
-            HistoryEntry(
+            LocalHistoryEntity(
                 queryKey = cleaned.lowercase(),
                 query = cleaned,
                 createdAt = System.currentTimeMillis(),

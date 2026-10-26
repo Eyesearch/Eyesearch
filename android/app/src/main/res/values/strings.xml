@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">EyeSearch</string>
+    <string name="app_name">eyesearch</string>
     <string name="search_hint">Search the web…</string>
     <string name="search_action">Search</string>
     <string name="clear_search">Clear search</string>

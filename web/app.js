@@ -8,7 +8,7 @@
  *   home/feed-cards        → weather (Open-Meteo) + headlines (our own gateway)
  *   menu/theme-selector    → one toggle button, system default
  *   profile/*              → account placeholder, popover summary, history screen
- *   results/*              → tabs, cards, latency/provider badges
+ *   results/*              → tabs, cards, and the AI Mode chat panel
  *
  * Three views: home hero, results (own search bar + tabs + cards), history.
  */
@@ -28,7 +28,7 @@ import { mountClearHistory } from "./profile/local-history/clear-history.js";
 import { mountHistoryView } from "./profile/local-history/history-view.js";
 import { mountTabSwitcher } from "./results/nav-tabs/tab-switcher.js";
 import { createWebCard } from "./results/result-cards/web-card.js";
-import { mountLatencyBadge } from "./results/meta-info/latency-badge.js";
+import { mountChatPanel } from "./results/ai-chat/chat-panel.js";
 
 const mount = (name) => document.querySelector(`[data-mount="${name}"]`);
 
@@ -198,11 +198,20 @@ async function runSearch(query, { tab = state.tab } = {}) {
   addHistory(cleaned);
 
   const started = performance.now();
+
+  if (tab === "ai") {
+    // AI Mode: a conversational answer, streamed, seeded with this query.
+    setBusy(false);
+    if (els.cards) els.cards.textContent = "";
+    document.body.dataset.tab = "ai";
+    chatPanel.ask(cleaned);
+    return;
+  }
+  document.body.dataset.tab = "all";
+  chatPanel.clear();
+
   try {
-    const payload =
-      tab === "ai"
-        ? await retrieveContext(cleaned, { signal: controller.signal })
-        : await searchWeb(cleaned, { signal: controller.signal });
+    const payload = await searchWeb(cleaned, { signal: controller.signal });
     if (token !== state.token) return;
 
     state.lastPayload = payload;
@@ -216,20 +225,8 @@ async function runSearch(query, { tab = state.tab } = {}) {
   }
 }
 
-function renderPayload(payload, query, tab, started) {
+function renderPayload(payload, query, tab) {
   const results = payload.results || [];
-  latency.update({
-    took_ms: payload.took_ms != null ? payload.took_ms : Math.round(performance.now() - started),
-    count: results.length,
-    degraded: payload.degraded === true,
-    cache_hit: payload.cache_hit === true,
-    providers: payload.providers || {},
-    failed_providers: payload.failed_providers || [],
-    measured: payload.took_ms == null,
-    query,
-    tab,
-  });
-
   if (results.length === 0) {
     renderEmpty(t("noResultsTitle"), t("noResultsBody"));
     return;
@@ -312,7 +309,9 @@ mountLensButton(resultsInput.actions, {
   onError: (message) => showNotice(message),
 });
 
-const latency = mountLatencyBadge(mount("meta-info"));
+// The timing line and source-attribution badges were removed from the UI; the
+// no-op shim keeps the surrounding flow untouched.
+const latency = { update() {}, reset() {}, setLoading() {} };
 
 const tabs = mountTabSwitcher(mount("nav-tabs"), {
   onChange: (tab) => {
@@ -320,6 +319,8 @@ const tabs = mountTabSwitcher(mount("nav-tabs"), {
     else state.tab = tab;
   },
 });
+
+const chatPanel = mountChatPanel(mount("ai-chat"), {});
 
 const historyView = mountHistoryView(mount("history-full"), {
   onPick: (query) => {

@@ -35,7 +35,8 @@ const PRECACHE = [
   "./results/nav-tabs/tab-switcher.js",
   "./results/result-cards/web-card.js",
   "./results/result-cards/card-renderer.css",
-  "./results/meta-info/latency-badge.js"
+  "./results/ai-chat/chat-panel.js",
+  "./results/ai-chat/chat-panel.css"
 ];
 
 self.addEventListener("install", (event) => {

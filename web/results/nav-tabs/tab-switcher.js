@@ -8,7 +8,9 @@
 
 import { t, onLangChange } from "../../menu/language-selector/lang-switcher.js";
 
-export const TABS = ["all", "ai"];
+// AI Mode leads the bar; "All" stays the default the user lands on.
+export const TABS = ["ai", "all"];
+export const DEFAULT_TAB = "all";
 
 /**
  * @param {HTMLElement} container
@@ -17,7 +19,7 @@ export const TABS = ["all", "ai"];
 export function mountTabSwitcher(container, options = {}) {
   if (!container) throw new Error("mountTabSwitcher: container is required");
 
-  let active = options.initial === "ai" ? "ai" : "all";
+  let active = options.initial === "ai" ? "ai" : DEFAULT_TAB;
 
   const wrap = document.createElement("div");
   wrap.className = "tabs";
@@ -46,11 +48,26 @@ export function mountTabSwitcher(container, options = {}) {
 
   container.appendChild(wrap);
 
+  const sparkle = () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    svg.classList.add("tab-icon");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z");
+    path.setAttribute("fill", "currentColor");
+    svg.appendChild(path);
+    return svg;
+  };
+
   function sync() {
     const labels = { all: t("tabAll"), ai: t("tabAI") };
     buttons.forEach((button) => {
       const tab = button.dataset.tab;
-      button.textContent = labels[tab];
+      button.textContent = "";
+      if (tab === "ai") button.appendChild(sparkle());
+      button.appendChild(document.createTextNode(labels[tab]));
       button.setAttribute("aria-selected", String(tab === active));
       button.tabIndex = tab === active ? 0 : -1;
       button.title = tab === "ai" ? t("tabAIHint") : "";

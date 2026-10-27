@@ -244,6 +244,58 @@ mark {
 
 
 /* Matched query terms: bold, with a soft amber wash so the eye finds them. */
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1.06rem;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.card-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-title a:hover {
+  text-decoration: underline;
+}
+
+.card-breadcrumb {
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--muted, #5f6368);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-snippet {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text-secondary, #3c4043);
+  /* two to three readable lines, never a wall of text */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+
 .card .hl {
   font-weight: 700;
   background: rgba(234, 179, 8, 0.22);
@@ -277,5 +329,25 @@ mark {
   }
   .card-verified {
     color: #8ab4f8;
+  }
+}
+
+
+/* Mobile: tighter rhythm, a little more line-height for narrow columns. */
+@media (max-width: 720px) {
+  .card-body {
+    gap: 5px;
+  }
+  .card-title {
+    font-size: 1rem;
+    line-height: 1.38;
+  }
+  .card-breadcrumb {
+    font-size: 0.76rem;
+  }
+  .card-snippet {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    -webkit-line-clamp: 3;
   }
 }

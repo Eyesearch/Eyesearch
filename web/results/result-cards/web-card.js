@@ -35,6 +35,24 @@ function breadcrumbParts(url) {
   return parts;
 }
 
+/**
+ * A card title should read like a page title, not a domain. When the backend
+ * only had the hostname (a portal that refused the crawler), humanise the label
+ * rather than echoing "karnataka.gov.in" back at the reader.
+ */
+function titleFor(result, host, fallbackUrl) {
+  const raw = String(result.title || "").trim();
+  const bare = host.replace(/^www\./, "");
+  const looksLikeHost =
+    !raw || raw.toLowerCase() === bare.toLowerCase() || raw.toLowerCase() === host.toLowerCase();
+  if (!looksLikeHost) return raw;
+
+  const label = (bare.split(".")[0] || "").replace(/[-_]+/g, " ").trim();
+  if (!label) return raw || fallbackUrl || "Untitled result";
+  if (label.length <= 4) return label.toUpperCase();
+  return label.replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 const VERIFIED_SUFFIXES = [".gov.in", ".nic.in", ".ac.in"];
 
 function isVerifiedDomain(host) {
@@ -82,8 +100,8 @@ export function createWebCard(result, options = {}) {
   if (options.compact) item.classList.add("card-compact");
 
   const url = typeof result.url === "string" ? result.url : "";
-  const title = result.title || url || "Untitled result";
   const host = hostOf(url);
+  const title = titleFor(result, host, url);
 
   const poster = result.thumbnail_url || result.poster_url;
   if (poster) {
@@ -182,8 +200,9 @@ export function createWebCard(result, options = {}) {
 
   const snippet = document.createElement("p");
   snippet.className = "card-snippet";
-  highlightInto(snippet, result.snippet || "", options.terms);
-  if (!result.snippet) snippet.hidden = true;
+  const snippetText = String(result.snippet || "").trim();
+  highlightInto(snippet, snippetText, options.terms);
+  if (!snippetText) snippet.hidden = true;
 
   body.append(top, heading, snippet);
   item.appendChild(body);

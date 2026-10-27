@@ -186,6 +186,33 @@ body[data-tab="ai"] #result-cards {
   vertical-align: -2px;
 }
 
+/* The AI pill is icon-only: a robot glyph with the name in the tooltip. */
+.tab-icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 6px 10px;
+}
+
+.tab-icon-only .tab-icon-bot {
+  width: 18px;
+  height: 18px;
+  margin-right: 0;
+  vertical-align: middle;
+}
+
+@media (max-width: 720px) {
+  .tab-icon-only {
+    min-width: 44px;
+    min-height: 40px;
+  }
+  .tab-icon-only .tab-icon-bot {
+    width: 20px;
+    height: 20px;
+  }
+}
+
 @media (max-width: 720px) {
   .chat { padding-bottom: 12px; }
   .chat-log { max-height: none; }

@@ -24,7 +24,6 @@ export function onLangChange() {
 
 const STRINGS = {
   tagline: "One query. The whole web. Clean results for people and agents.",
-  footer: "eyesearch gateway · results are fetched live from the open web.",
   searchLabel: "Search",
   searchPlaceholder: "Search the web…",
   searchHint: "Press Enter or the search button to run a search. / focuses the field, Esc clears it.",

@@ -48,16 +48,36 @@ export function mountTabSwitcher(container, options = {}) {
 
   container.appendChild(wrap);
 
-  const sparkle = () => {
+  // A robot glyph rather than a text label: the pill is icon-only, and the
+  // accessible name and tooltip carry "AI Mode".
+  const robotIcon = () => {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("aria-hidden", "true");
     svg.setAttribute("focusable", "false");
-    svg.classList.add("tab-icon");
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z");
-    path.setAttribute("fill", "currentColor");
-    svg.appendChild(path);
+    svg.classList.add("tab-icon", "tab-icon-bot");
+    const strokes = [
+      // antenna
+      "M12 3v3",
+      "M9 6h6",
+      // head
+      "M6 9h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z",
+      // eyes
+      "M9.5 12.5h.01",
+      "M14.5 12.5h.01",
+      // mouth
+      "M9.5 15.5h5",
+    ];
+    strokes.forEach((d) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "currentColor");
+      path.setAttribute("stroke-width", "1.7");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      svg.appendChild(path);
+    });
     return svg;
   };
 
@@ -66,11 +86,20 @@ export function mountTabSwitcher(container, options = {}) {
     buttons.forEach((button) => {
       const tab = button.dataset.tab;
       button.textContent = "";
-      if (tab === "ai") button.appendChild(sparkle());
-      button.appendChild(document.createTextNode(labels[tab]));
+      if (tab === "ai") {
+        button.appendChild(robotIcon());
+        // icon-only pill: the name lives in the tooltip and the accessible label
+        button.classList.add("tab-icon-only");
+        button.title = t("tabAI");
+        button.setAttribute("aria-label", t("tabAI"));
+      } else {
+        button.appendChild(document.createTextNode(labels[tab]));
+        button.classList.remove("tab-icon-only");
+        button.title = "";
+        button.setAttribute("aria-label", labels[tab]);
+      }
       button.setAttribute("aria-selected", String(tab === active));
       button.tabIndex = tab === active ? 0 : -1;
-      button.title = tab === "ai" ? t("tabAIHint") : "";
     });
   }
 

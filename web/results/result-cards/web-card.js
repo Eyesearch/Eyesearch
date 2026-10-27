@@ -35,6 +35,13 @@ function breadcrumbParts(url) {
   return parts;
 }
 
+const VERIFIED_SUFFIXES = [".gov.in", ".nic.in", ".ac.in"];
+
+function isVerifiedDomain(host) {
+  const value = String(host || "").toLowerCase();
+  return VERIFIED_SUFFIXES.some((suffix) => value.endsWith(suffix));
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -52,7 +59,8 @@ function highlightInto(target, text, terms) {
   let match;
   while ((match = pattern.exec(value)) !== null) {
     if (match.index > cursor) target.appendChild(document.createTextNode(value.slice(cursor, match.index)));
-    const mark = document.createElement("mark");
+    const mark = document.createElement("strong");
+    mark.className = "hl";
     mark.textContent = match[0];
     target.appendChild(mark);
     cursor = match.index + match[0].length;
@@ -139,6 +147,19 @@ export function createWebCard(result, options = {}) {
     crumb.appendChild(span);
   });
 
+  if (isVerifiedDomain(host)) {
+    const badge = document.createElement("span");
+    badge.className = "card-verified";
+    badge.title = "Official Indian public domain";
+    badge.setAttribute("aria-label", "Verified official domain");
+    badge.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+      '<path d="M12 2.6l2.3 1.7 2.8-.2 1 2.6 2.4 1.5-.7 2.7.7 2.7-2.4 1.5-1 2.6-2.8-.2L12 21.4l-2.3-1.7-2.8.2-1-2.6L3.5 15.8l.7-2.7-.7-2.7 2.4-1.5 1-2.6 2.8.2z" ' +
+      'fill="currentColor"/><path d="M8.6 12.2l2.2 2.2 4.6-4.6" fill="none" stroke="#fff" ' +
+      'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    crumb.appendChild(badge);
+  }
+
   top.append(favicon, crumb);
 
   const label = KIND_LABEL[result.kind];
@@ -155,7 +176,7 @@ export function createWebCard(result, options = {}) {
   link.href = url || "#";
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  link.textContent = title;
+  highlightInto(link, title, options.terms);
   if (result.source) link.title = `Source: ${result.source}`;
   heading.appendChild(link);
 

@@ -186,20 +186,33 @@ body[data-tab="ai"] #result-cards {
   vertical-align: -2px;
 }
 
-/* The AI pill is icon-only: a robot glyph with the name in the tooltip. */
+/* The AI pill is icon-only: a golden three-star sparkle, name in the tooltip. */
 .tab-icon-only {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 40px;
+  min-height: 40px;
   padding: 6px 10px;
 }
 
-.tab-icon-only .tab-icon-bot {
+.tab-icon-only .tab-icon-sparkle {
   width: 18px;
   height: 18px;
   margin-right: 0;
   vertical-align: middle;
+  color: #eab308;
+  transition: color 120ms ease, transform 120ms ease;
+}
+
+.tab-icon-only:hover .tab-icon-sparkle,
+.tab-icon-only:focus-visible .tab-icon-sparkle {
+  color: #f59e0b;
+  transform: scale(1.06);
+}
+
+.tab-icon-only[aria-selected="true"] .tab-icon-sparkle {
+  color: #f59e0b;
 }
 
 @media (max-width: 720px) {
@@ -207,7 +220,7 @@ body[data-tab="ai"] #result-cards {
     min-width: 44px;
     min-height: 40px;
   }
-  .tab-icon-only .tab-icon-bot {
+  .tab-icon-only .tab-icon-sparkle {
     width: 20px;
     height: 20px;
   }

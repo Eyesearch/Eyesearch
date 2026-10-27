@@ -241,3 +241,41 @@ mark {
     font-size: 16px;
   }
 }
+
+
+/* Matched query terms: bold, with a soft amber wash so the eye finds them. */
+.card .hl {
+  font-weight: 700;
+  background: rgba(234, 179, 8, 0.22);
+  border-radius: 3px;
+  padding: 0 1px;
+  color: inherit;
+}
+
+.card-title .hl {
+  background: rgba(234, 179, 8, 0.28);
+}
+
+/* Verified badge for .gov.in / .nic.in / .ac.in domains. */
+.card-verified {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: -2px;
+  color: #1a73e8;
+}
+
+.card-verified svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card .hl,
+  .card-title .hl {
+    background: rgba(234, 179, 8, 0.3);
+  }
+  .card-verified {
+    color: #8ab4f8;
+  }
+}

@@ -48,36 +48,34 @@ export function mountTabSwitcher(container, options = {}) {
 
   container.appendChild(wrap);
 
-  // A robot glyph rather than a text label: the pill is icon-only, and the
-  // accessible name and tooltip carry "AI Mode".
-  const robotIcon = () => {
+  // A three-star sparkle: one prominent four-point star with two smaller
+  // companions, in the amber accent. The pill is icon-only; the tooltip and
+  // aria-label carry "AI Mode".
+  const sparkleIcon = () => {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("aria-hidden", "true");
     svg.setAttribute("focusable", "false");
-    svg.classList.add("tab-icon", "tab-icon-bot");
-    const strokes = [
-      // antenna
-      "M12 3v3",
-      "M9 6h6",
-      // head
-      "M6 9h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z",
-      // eyes
-      "M9.5 12.5h.01",
-      "M14.5 12.5h.01",
-      // mouth
-      "M9.5 15.5h5",
-    ];
-    strokes.forEach((d) => {
+    svg.classList.add("tab-icon", "tab-icon-sparkle");
+
+    const star = (cx, cy, outer, inner, points = 4) => {
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", d);
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", "currentColor");
-      path.setAttribute("stroke-width", "1.7");
-      path.setAttribute("stroke-linecap", "round");
-      path.setAttribute("stroke-linejoin", "round");
+      const step = Math.PI / points;
+      const coords = [];
+      for (let i = 0; i < points * 2; i += 1) {
+        const radius = i % 2 === 0 ? outer : inner;
+        const angle = -Math.PI / 2 + i * step;
+        coords.push(`${(cx + radius * Math.cos(angle)).toFixed(2)} ${(cy + radius * Math.sin(angle)).toFixed(2)}`);
+      }
+      path.setAttribute("d", `M${coords.join("L")}Z`);
+      path.setAttribute("fill", "currentColor");
       svg.appendChild(path);
-    });
+      return path;
+    };
+
+    star(9.5, 10, 6.2, 1.9);   // the prominent star
+    star(17.6, 6.4, 2.6, 0.8); // companion, upper right
+    star(17.2, 16.4, 2.1, 0.7); // companion, lower right
     return svg;
   };
 
@@ -87,7 +85,7 @@ export function mountTabSwitcher(container, options = {}) {
       const tab = button.dataset.tab;
       button.textContent = "";
       if (tab === "ai") {
-        button.appendChild(robotIcon());
+        button.appendChild(sparkleIcon());
         // icon-only pill: the name lives in the tooltip and the accessible label
         button.classList.add("tab-icon-only");
         button.title = t("tabAI");

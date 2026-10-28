@@ -2,8 +2,10 @@
  * results/result-cards — one structured result card.
  *
  * Everything here is built with DOM nodes and textContent: server strings are
- * never parsed as HTML, so a hostile result title cannot inject markup. Query
- * terms are highlighted with <mark> by splitting text nodes, not by innerHTML.
+ * never parsed as HTML, so a hostile result title cannot inject markup.
+ *
+ * Query terms are deliberately not highlighted: the card shows clean text, and
+ * a "More" link appears only when the snippet is actually clamped.
  */
 
 function hostOf(url) {
@@ -58,33 +60,6 @@ const VERIFIED_SUFFIXES = [".gov.in", ".nic.in", ".ac.in"];
 function isVerifiedDomain(host) {
   const value = String(host || "").toLowerCase();
   return VERIFIED_SUFFIXES.some((suffix) => value.endsWith(suffix));
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function highlightInto(target, text, terms) {
-  target.textContent = "";
-  const value = String(text == null ? "" : text);
-  const usable = (terms || []).filter((term) => term && term.length > 1);
-  if (usable.length === 0) {
-    target.appendChild(document.createTextNode(value));
-    return;
-  }
-  const pattern = new RegExp(`(${usable.map(escapeRegExp).join("|")})`, "gi");
-  let cursor = 0;
-  let match;
-  while ((match = pattern.exec(value)) !== null) {
-    if (match.index > cursor) target.appendChild(document.createTextNode(value.slice(cursor, match.index)));
-    const mark = document.createElement("strong");
-    mark.className = "hl";
-    mark.textContent = match[0];
-    target.appendChild(mark);
-    cursor = match.index + match[0].length;
-    if (pattern.lastIndex === match.index) pattern.lastIndex += 1;
-  }
-  if (cursor < value.length) target.appendChild(document.createTextNode(value.slice(cursor)));
 }
 
 const KIND_LABEL = { video: "Video", image: "Image", news: "News", film: "Film", document: "PDF" };
@@ -194,17 +169,34 @@ export function createWebCard(result, options = {}) {
   link.href = url || "#";
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  highlightInto(link, title, options.terms);
+  link.textContent = title;
   if (result.source) link.title = `Source: ${result.source}`;
   heading.appendChild(link);
 
   const snippet = document.createElement("p");
   snippet.className = "card-snippet";
   const snippetText = String(result.snippet || "").trim();
-  highlightInto(snippet, snippetText, options.terms);
+  snippet.textContent = snippetText;
   if (!snippetText) snippet.hidden = true;
 
-  body.append(top, heading, snippet);
+  // Shown only when the two-line clamp actually cuts text off, so a short
+  // snippet does not advertise a "More" that leads nowhere new.
+  const more = document.createElement("a");
+  more.className = "card-more";
+  more.href = url || "#";
+  more.target = "_blank";
+  more.rel = "noopener noreferrer";
+  more.textContent = "More";
+  more.hidden = true;
+
+  body.append(top, heading, snippet, more);
+
+  // Measure after layout: the card is not in the document yet at this point.
+  if (snippetText) {
+    requestAnimationFrame(() => {
+      if (snippet.scrollHeight - snippet.clientHeight > 1) more.hidden = false;
+    });
+  }
   item.appendChild(body);
   return item;
 }

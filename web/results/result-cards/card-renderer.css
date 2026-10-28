@@ -56,21 +56,16 @@
   margin-bottom: 0;
 }
 
-/* Every result is its own isolated 4-sided box. */
+/* Google-style: the result is a column of text, not a box. */
 .card {
   display: flex;
   gap: 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-  background: var(--card-bg);
-  transition: border-color var(--dur) ease, box-shadow var(--dur) ease;
-}
-
-.card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 28px;
+  background: transparent;
+  max-width: 652px;
 }
 
 .card-compact {
@@ -117,9 +112,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--favicon-well);
 }
 
 .card-favicon img {
@@ -174,44 +171,6 @@
   text-transform: uppercase;
 }
 
-.card-title {
-  margin: 0 0 3px;
-  font-size: 17px;
-  font-weight: 500;
-  line-height: 1.35;
-  letter-spacing: -0.01em;
-}
-
-.card-title a {
-  color: var(--accent);
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-.card-title a:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.card-snippet {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 14px;
-  line-height: 1.55;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-mark {
-  padding: 0 1px;
-  border-radius: 3px;
-  background: var(--accent-soft);
-  color: inherit;
-}
-
 .retry-button {
   margin-top: 12px;
   padding: 8px 18px;
@@ -251,20 +210,22 @@ mark {
 }
 
 .card-title {
-  margin: 0;
-  font-size: 1.06rem;
-  line-height: 1.35;
-  font-weight: 600;
-  letter-spacing: -0.005em;
+  margin: 0 0 4px;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .card-title a {
-  color: inherit;
+  color: var(--result-title);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .card-title a:hover {
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .card-breadcrumb {
@@ -278,9 +239,9 @@ mark {
 
 .card-snippet {
   margin: 0;
-  font-size: 0.92rem;
-  line-height: 1.55;
-  color: var(--text-secondary, #3c4043);
+  font-size: 14px;
+  line-height: 1.58;
+  color: var(--result-snippet);
   /* two to three readable lines, never a wall of text */
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -350,4 +311,19 @@ mark {
     line-height: 1.6;
     -webkit-line-clamp: 3;
   }
+}
+
+/* Google-style result typography. Declared as tokens rather than hardcoded
+   hex so the app's manual theme switch (html[data-theme]) keeps working; a
+   prefers-color-scheme block here would ignore the user's own choice. */
+:root {
+  --result-title: #1a0dab;
+  --result-snippet: #4d5156;
+  --favicon-well: #f1f3f4;
+}
+
+html[data-theme="dark"] {
+  --result-title: #8ab4f8;
+  --result-snippet: #bdc1c6;
+  --favicon-well: #303134;
 }

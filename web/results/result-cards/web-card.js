@@ -65,6 +65,16 @@ function isVerifiedDomain(host) {
 const KIND_LABEL = { video: "Video", image: "Image", news: "News", film: "Film", document: "PDF" };
 
 /**
+ * Every card carries a category chip, so a reader can tell a gazette notice from
+ * a news item without opening either. `web` is the default rather than a gap:
+ * a card with no chip looks like a bug next to one that has it.
+ */
+function categoryOf(result) {
+  const raw = KIND_LABEL[result.kind] || result.kind || result.category || "web";
+  return String(raw).replace(/[_-]+/g, " ").trim().toUpperCase();
+}
+
+/**
  * @param {object} result one entry from /v1/search results[]
  * @param {{terms?: string[], compact?: boolean}} options
  * @returns {HTMLElement}
@@ -140,6 +150,16 @@ export function createWebCard(result, options = {}) {
     crumb.appendChild(span);
   });
 
+  const category = document.createElement("span");
+  category.className = "card-category-badge";
+  category.textContent = categoryOf(result);
+  // Straight after the domain, ahead of any path segments.
+  if (crumb.firstChild && crumb.firstChild.nextSibling) {
+    crumb.insertBefore(category, crumb.firstChild.nextSibling);
+  } else {
+    crumb.appendChild(category);
+  }
+
   if (isVerifiedDomain(host)) {
     const badge = document.createElement("span");
     badge.className = "card-verified";
@@ -154,14 +174,6 @@ export function createWebCard(result, options = {}) {
   }
 
   top.append(favicon, crumb);
-
-  const label = KIND_LABEL[result.kind];
-  if (label) {
-    const kind = document.createElement("span");
-    kind.className = "card-kind";
-    kind.textContent = label;
-    top.appendChild(kind);
-  }
 
   const heading = document.createElement("h3");
   heading.className = "card-title";

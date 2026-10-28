@@ -167,16 +167,25 @@
   color: var(--text-faint);
 }
 
-.card-kind {
+/* Category chip, sitting just after the domain. Token colours, so the app's
+   manual theme switch covers it without a separate media query. */
+.card-category-badge {
+  display: inline-flex;
+  align-items: center;
   flex: 0 0 auto;
-  padding: 1px 7px;
+  margin-left: 6px;
+  padding: 1px 6px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--bg-subtle);
   color: var(--text-faint);
-  font-size: 10.5px;
-  letter-spacing: 0.04em;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
   text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .retry-button {

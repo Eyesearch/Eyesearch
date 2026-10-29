@@ -49,8 +49,15 @@ const KIND_LABEL = { video: "Video", image: "Image", news: "News", film: "Film",
  * a card with no chip looks like a bug next to one that has it.
  */
 function categoryOf(result) {
-  const raw = KIND_LABEL[result.kind] || result.kind || result.category || "web";
-  return String(raw).replace(/[_-]+/g, " ").trim().toUpperCase();
+  // The server already sends a short upper-case code (GOV, TECH, FINANCE…), and
+  // it knows the page's category from the classifier rather than from the media
+  // kind. Kind is the fallback for rows indexed before categories were returned.
+  const fromServer = String(result.category || "").trim();
+  if (fromServer) return fromServer.toUpperCase();
+
+  const raw = KIND_LABEL[result.kind] || result.kind || "";
+  const cleaned = String(raw).replace(/[_-]+/g, " ").trim().toUpperCase();
+  return cleaned || "WEB";
 }
 
 /**

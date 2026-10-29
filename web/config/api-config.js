@@ -9,16 +9,15 @@
  */
 
 /**
- * Same origin by default. The static host proxies /v1/* and /health to the VM
- * (see netlify.toml and vercel.json), so the browser only ever talks HTTPS to
- * the host it loaded the page from and the plain-HTTP hop to the VM happens
- * server-side. Pointing this at http://<vm-ip>:8000 directly would be blocked
- * as mixed content on any HTTPS page.
+ * The API's own HTTPS origin. The frontend is served from GitHub Pages, which
+ * cannot proxy /v1/* to the VM, so the app calls the domain directly — and it
+ * has to be https://, because an HTTP request from an HTTPS page is blocked as
+ * mixed content.
  *
- * Set window.EYESEARCH_API_BASE before this module loads to override it — that
- * is what a GitHub Pages deployment needs, because Pages cannot proxy.
+ * Set window.EYESEARCH_API_BASE before this module loads to point a build at a
+ * different gateway (a staging API, or a local stub).
  */
-const DEFAULT_BASE = "";
+const DEFAULT_BASE = "https://eyesearch.duckdns.org";
 const LOCAL_DEV_BASE = "http://127.0.0.1:8000";
 
 /**

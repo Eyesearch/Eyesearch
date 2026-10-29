@@ -8,10 +8,9 @@ package com.eyesearch.app.core.util
 object Constants {
 
     // --- gateway ---------------------------------------------------------
-    // The VM, not Render. Plain HTTP today, which is why
-    // res/xml/network_security_config.xml permits cleartext for this one host.
-    // Swap it for an https:// URL once the API sits behind a TLS proxy.
-    const val API_BASE_URL = "http://35.255.20.40:8000"
+    // The API's own HTTPS origin, behind the VM's Nginx with a real
+    // certificate. No cleartext exception is needed any more.
+    const val API_BASE_URL = "https://eyesearch.duckdns.org"
     const val SEARCH_PATH = "/v1/search"
     const val RETRIEVE_PATH = "/v1/retrieve"
     const val DEFAULT_LIMIT = 10

@@ -43,11 +43,11 @@
   "rewrites": [
     {
       "source": "/v1/:path*",
-      "destination": "http://35.255.20.40:8000/v1/:path*"
+      "destination": "https://eyesearch.duckdns.org/v1/:path*"
     },
     {
       "source": "/health",
-      "destination": "http://35.255.20.40:8000/health"
+      "destination": "https://eyesearch.duckdns.org/health"
     }
   ]
 }

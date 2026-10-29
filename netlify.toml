@@ -4,18 +4,18 @@
   publish = "."
   command = ""
 
-# The API lives on the VM over plain HTTP. Proxying it here keeps the browser
-# on HTTPS and avoids a mixed-content block; the hop to the VM is server-side.
-# Replace the host when the API gets its own domain.
+# Not used by the GitHub Pages deployment, which cannot proxy. Kept correct for
+# anyone serving this from Netlify: the API now has its own TLS domain, so this
+# proxies to https rather than to the VM's plain-HTTP address.
 [[redirects]]
   from = "/v1/*"
-  to = "http://35.255.20.40:8000/v1/:splat"
+  to = "https://eyesearch.duckdns.org/v1/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/health"
-  to = "http://35.255.20.40:8000/health"
+  to = "https://eyesearch.duckdns.org/health"
   status = 200
   force = true
 

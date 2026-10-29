@@ -266,6 +266,10 @@
   white-space: nowrap;
 }
 
+.card-snippet-wrap {
+  position: relative;
+}
+
 .card-snippet {
   margin: 0;
   font-size: 13px;
@@ -297,13 +301,26 @@
   overflow: visible;
 }
 
+/* Bottom-right of the snippet, as plain text. No box, no fill, no outline.
+   `appearance: none` is the part that matters: without it the browser paints
+   its own native button chrome regardless of the background. */
 .card-more {
-  align-self: flex-start;
-  margin-top: 2px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 0 0 0 0.5em;
+  border: none;
+  background: var(--card-surface);
+  font: inherit;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.45;
   color: var(--result-title);
   text-decoration: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .card-more:hover {

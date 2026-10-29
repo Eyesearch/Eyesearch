@@ -274,7 +274,14 @@ export function createWebCard(result, options = {}) {
     more.setAttribute("aria-expanded", expanded ? "true" : "false");
   });
 
-  body.append(top, heading, snippet, more);
+  // The toggle is positioned against the snippet rather than sitting after it,
+  // so offering "More" does not make a card taller than its neighbours. The
+  // wrapper is what gives it something to be positioned against.
+  const snippetWrap = document.createElement("div");
+  snippetWrap.className = "card-snippet-wrap";
+  snippetWrap.append(snippet, more);
+
+  body.append(top, heading, snippetWrap);
 
   // Measure after layout: the card is not in the document yet at this point.
   //

@@ -87,23 +87,40 @@ setTimeout(() => {
     facts: [...document.querySelectorAll(".card-facts li")].map((e) => e.textContent),
     icons: [...document.querySelectorAll(".card-favicon img")].map((e) => e.getAttribute("src")),
     moreVisible: [...document.querySelectorAll(".card-more")].map((b) => !b.hidden),
+    heights: [...document.querySelectorAll(".card")].map((c) => ({
+      height: Math.round(c.getBoundingClientRect().height),
+      federated: Boolean(c.querySelector(".card-attribution")),
+    })),
   };
 
   const toggle = [...document.querySelectorAll(".card-more")].find((b) => !b.hidden);
   if (toggle) {
-    const snippet = toggle.closest(".card").querySelector(".card-snippet");
-    const before = Math.round(snippet.getBoundingClientRect().height);
+    const card = toggle.closest(".card");
+    const snippet = card.querySelector(".card-snippet");
+    const style = getComputedStyle(toggle);
+    const buttonRect = toggle.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+
+    probe.toggleStyle = {
+      borderWidth: style.borderTopWidth,
+      appearance: style.appearance,
+    };
+    // Flush with the content's right edge: the card's own padding is the gap.
+    probe.toggleGapRight = Math.round(cardRect.right - buttonRect.right);
+
+    const before = Math.round(card.getBoundingClientRect().height);
     toggle.click();
     probe.expanded = {
       label: toggle.textContent,
-      height: Math.round(snippet.getBoundingClientRect().height),
+      height: Math.round(card.getBoundingClientRect().height),
       aria: toggle.getAttribute("aria-expanded"),
-      grew: Math.round(snippet.getBoundingClientRect().height) > before,
+      grew: Math.round(card.getBoundingClientRect().height) > before,
     };
     toggle.click();
     probe.collapsed = {
       label: toggle.textContent,
-      height: Math.round(snippet.getBoundingClientRect().height),
+      height: Math.round(card.getBoundingClientRect().height),
+      backToDefault: Math.round(card.getBoundingClientRect().height) === before,
     };
   }
   document.title = "PROBE:" + JSON.stringify(probe);
@@ -165,7 +182,23 @@ check("More expands the snippet", probe.expanded?.grew, true);
 check("the button becomes Less", probe.expanded?.label, "Less");
 check("the expanded state is announced", probe.expanded?.aria, "true");
 check("Less collapses the snippet again", probe.collapsed?.label, "More");
-check("the collapsed height matches the clamp", probe.collapsed?.height, probe.collapsed?.height);
+check("collapsing restores the default height", probe.collapsed?.backToDefault, true);
+
+// Every indexed card is the same height in its default state, whether or not it
+// offers "More" — the toggle is positioned over the snippet, not stacked after
+// it. A federated card is deliberately excluded: it carries an attribution line
+// and a fact row that the others do not, and hiding those to force a height
+// would defeat the point of showing them.
+const indexed = probe.heights.filter((c) => !c.federated).map((c) => c.height);
+check("all indexed cards share one default height", new Set(indexed).size, 1);
+check("the federated card is taller, by design", probe.heights.some((c) => c.federated && c.height > indexed[0]), true);
+
+// The toggle is plain text: no box, no native button chrome.
+check("the toggle has no border", probe.toggleStyle?.borderWidth, "0px");
+check("the toggle has no native appearance", probe.toggleStyle?.appearance, "none");
+
+// Aligned to the right edge of the content area (the card's padding is the gap).
+check("the toggle sits on the right", probe.toggleGapRight <= 20, true);
 
 // The card must ask the site for its own icon; a third-party icon service would
 // leak which page the reader is on.

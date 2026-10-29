@@ -19,7 +19,8 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
 const CARD_JS = readFileSync(join(root, "web/results/result-cards/web-card.js"), "utf8")
-  .replace("export function createWebCard", "function createWebCard");
+  .replace("export function createWebCard", "function createWebCard")
+  .replace("export function equaliseCardHeights", "function equaliseCardHeights");
 const BASE_CSS = readFileSync(join(root, "web/base.css"), "utf8");
 const CARD_CSS = readFileSync(join(root, "web/results/result-cards/card-renderer.css"), "utf8");
 
@@ -78,6 +79,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
 const cases = ${JSON.stringify(CASES)};
 const out = document.getElementById("out");
 for (const item of cases) out.appendChild(createWebCard(item.result, {}));
+equaliseCardHeights(out);
 setTimeout(() => {
   const probe = {
     crumbs: [...document.querySelectorAll(".card-breadcrumb")].map((e) => e.textContent.trim()),
@@ -108,19 +110,22 @@ setTimeout(() => {
     // Flush with the content's right edge: the card's own padding is the gap.
     probe.toggleGapRight = Math.round(cardRect.right - buttonRect.right);
 
-    const before = Math.round(card.getBoundingClientRect().height);
+    // The snippet is what grows. The card may not: with a uniform floor it is
+    // already as tall as the tallest card in the list, so expanding a short
+    // snippet changes the text, not the row.
+    const snippetBefore = Math.round(snippet.getBoundingClientRect().height);
+    const cardBefore = Math.round(card.getBoundingClientRect().height);
     toggle.click();
     probe.expanded = {
       label: toggle.textContent,
-      height: Math.round(card.getBoundingClientRect().height),
+      snippetGrew: Math.round(snippet.getBoundingClientRect().height) > snippetBefore,
       aria: toggle.getAttribute("aria-expanded"),
-      grew: Math.round(card.getBoundingClientRect().height) > before,
     };
     toggle.click();
     probe.collapsed = {
       label: toggle.textContent,
-      height: Math.round(card.getBoundingClientRect().height),
-      backToDefault: Math.round(card.getBoundingClientRect().height) === before,
+      snippetHeight: Math.round(snippet.getBoundingClientRect().height),
+      backToDefault: Math.round(card.getBoundingClientRect().height) === cardBefore,
     };
   }
   document.title = "PROBE:" + JSON.stringify(probe);
@@ -178,20 +183,17 @@ check("indexed cards carry no attribution", probe.attribution.length, 1);
 // The "More" toggle: offered only where the clamp cuts text, and it expands in
 // place rather than sending the reader away.
 check("More is offered only where it is needed", probe.moreVisible, [false, false, false, true]);
-check("More expands the snippet", probe.expanded?.grew, true);
+check("More expands the snippet", probe.expanded?.snippetGrew, true);
 check("the button becomes Less", probe.expanded?.label, "Less");
 check("the expanded state is announced", probe.expanded?.aria, "true");
 check("Less collapses the snippet again", probe.collapsed?.label, "More");
 check("collapsing restores the default height", probe.collapsed?.backToDefault, true);
 
-// Every indexed card is the same height in its default state, whether or not it
-// offers "More" — the toggle is positioned over the snippet, not stacked after
-// it. A federated card is deliberately excluded: it carries an attribution line
-// and a fact row that the others do not, and hiding those to force a height
-// would defeat the point of showing them.
-const indexed = probe.heights.filter((c) => !c.federated).map((c) => c.height);
-check("all indexed cards share one default height", new Set(indexed).size, 1);
-check("the federated card is taller, by design", probe.heights.some((c) => c.federated && c.height > indexed[0]), true);
+// Every card is the same height in its default state, whether or not it offers
+// "More" — the toggle is positioned over the snippet rather than stacked after
+// it — and whether or not it is federated. The list takes the tallest card's
+// height, so nothing stands proud of the column.
+check("a federated card is measured too, not left standing taller", probe.heights.some((c) => c.federated), true);
 
 // The toggle is plain text: no box, no native button chrome.
 check("the toggle has no border", probe.toggleStyle?.borderWidth, "0px");
@@ -199,6 +201,10 @@ check("the toggle has no native appearance", probe.toggleStyle?.appearance, "non
 
 // Aligned to the right edge of the content area (the card's padding is the gap).
 check("the toggle sits on the right", probe.toggleGapRight <= 20, true);
+
+// One height for the whole list, computed from the tallest card actually
+// rendered rather than a number guessed at in the stylesheet.
+check("every card shares one height", new Set(probe.heights.map((c) => c.height)).size, 1);
 
 // The card must ask the site for its own icon; a third-party icon service would
 // leak which page the reader is on.

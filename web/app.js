@@ -27,7 +27,7 @@ import { addHistory } from "./profile/local-history/history-manager.js";
 import { mountClearHistory } from "./profile/local-history/clear-history.js";
 import { mountHistoryView } from "./profile/local-history/history-view.js";
 import { mountTabSwitcher } from "./results/nav-tabs/tab-switcher.js";
-import { createWebCard } from "./results/result-cards/web-card.js";
+import { createWebCard, equaliseCardHeights } from "./results/result-cards/web-card.js";
 import { mountChatPanel } from "./results/ai-chat/chat-panel.js";
 
 const mount = (name) => document.querySelector(`[data-mount="${name}"]`);
@@ -248,6 +248,11 @@ function renderPayload(payload, query, tab) {
     fragment.appendChild(createWebCard(result, { terms: terms(query), compact: tab === "ai" }));
   });
   els.cards.appendChild(fragment);
+
+  // Give every card the height of the tallest one in this set. Content differs
+  // — a brand line here, a two-line snippet there — and letting each card size
+  // itself makes the column stair-step, which reads as broken rather than tidy.
+  equaliseCardHeights(els.cards);
 
   if (payload.degraded) showNotice(t("degradedNotice"));
 }

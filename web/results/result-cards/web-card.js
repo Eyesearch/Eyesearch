@@ -65,10 +65,43 @@ function categoryOf(result) {
  * @param {{terms?: string[], compact?: boolean}} options
  * @returns {HTMLElement}
  */
+/**
+ * Make every card in the list the same height.
+ *
+ * Measured after layout, from the cards themselves, rather than guessed at in
+ * CSS: the tallest card depends on the results on screen, and a fixed number in
+ * the stylesheet would be wrong the first time a long title wrapped. The value
+ * goes on the container so the cards read it through one variable.
+ *
+ * A card that has been expanded by its own "More" toggle grows past this, which
+ * is the point — the minimum keeps the collapsed rows aligned.
+ */
+export function equaliseCardHeights(container) {
+  if (!container) return;
+  const cards = [...container.querySelectorAll(".card")];
+  if (cards.length < 2) return;
+
+  // Clear the previous value first: measuring while the floor is still applied
+  // would measure the floor, and the height could only ever grow.
+  container.style.setProperty("--card-min-h", "0px");
+
+  // Every card counts, federated ones included. A federated card is taller
+  // because of its attribution line, and letting it stand taller than the rest
+  // is exactly the ragged column this is here to prevent — so the row takes the
+  // tallest card's height and the others follow it.
+  const tallest = Math.max(
+    ...cards.map((card) => Math.ceil(card.getBoundingClientRect().height)),
+  );
+  container.style.setProperty("--card-min-h", `${tallest}px`);
+}
+
 export function createWebCard(result, options = {}) {
   const item = document.createElement("article");
   item.className = "card";
   if (options.compact) item.classList.add("card-compact");
+  // Marked so the list can measure row height from ordinary cards: a federated
+  // card carries an attribution line the others do not.
+  if (result.federated === true) item.classList.add("card-federated");
 
   const url = typeof result.url === "string" ? result.url : "";
   const host = hostOf(url);

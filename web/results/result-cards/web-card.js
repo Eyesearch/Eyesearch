@@ -170,15 +170,21 @@ export function createWebCard(result, options = {}) {
     crumb.appendChild(badge);
   }
 
+  // Brand over breadcrumb, as Google stacks them: the site's name on one line
+  // and where on the site this page sits on the next. A single row forced the
+  // breadcrumb to compete with the brand for width.
+  const headings = document.createElement("div");
+  headings.className = "card-headings";
+
   const brandName = String(result.brand_name || "").trim();
   if (brandName) {
     const brand = document.createElement("span");
     brand.className = "card-brand";
     brand.textContent = brandName;
-    top.append(favicon, brand, crumb);
-  } else {
-    top.append(favicon, crumb);
+    headings.appendChild(brand);
   }
+  headings.appendChild(crumb);
+  top.append(favicon, headings);
 
   // Direct child of the header row, not of the breadcrumb: the crumb clips its
   // overflow, so a chip inside it can never reach the card's right edge.

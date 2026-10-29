@@ -16,27 +16,6 @@ function hostOf(url) {
   }
 }
 
-function breadcrumbParts(url) {
-  const parts = [];
-  const host = hostOf(url);
-  if (host) parts.push({ text: host, leaf: false });
-  try {
-    const segments = new URL(url).pathname.split("/").filter(Boolean).slice(0, 2);
-    segments.forEach((segment, index) => {
-      let text = decodeURIComponent(segment)
-        .replace(/\.(html?|php|aspx?|jsp|txt)$/i, "")
-        .replace(/[-_]+/g, " ")
-        .trim();
-      if (!text) text = decodeURIComponent(segment);
-      if (text.length > 34) text = `${text.slice(0, 33)}…`;
-      parts.push({ text, leaf: index === segments.length - 1 });
-    });
-  } catch (error) {
-    /* unparsable URL: host-only breadcrumb is enough */
-  }
-  return parts;
-}
-
 /**
  * A card title should read like a page title, not a domain. When the backend
  * only had the hostname (a portal that refused the crawler), humanise the label
@@ -135,27 +114,12 @@ export function createWebCard(result, options = {}) {
     favicon.appendChild(tile);
   }
 
-  // The server's breadcrumb wins when it has one: it is built from the page's
-  // real path and knows the publisher's name, which a hostname does not. The
-  // local reconstruction stays for results indexed before that field existed.
-  const serverCrumb = String(result.clean_url || "").trim();
+  // Just the site, not the path. The second line answers "whose page is this"
+  // at a glance; the path added noise without helping the reader decide, and
+  // long paths pushed the line into an ellipsis anyway.
   const crumb = document.createElement("span");
   crumb.className = "card-breadcrumb";
-
-  if (serverCrumb) {
-    crumb.textContent = serverCrumb;
-  } else breadcrumbParts(url).forEach((part, index) => {
-    if (index > 0) {
-      const sep = document.createElement("span");
-      sep.className = "crumb-sep";
-      sep.textContent = "›";
-      crumb.appendChild(sep);
-    }
-    const span = document.createElement("span");
-    if (part.leaf) span.className = "crumb-leaf";
-    span.textContent = part.text;
-    crumb.appendChild(span);
-  });
+  crumb.textContent = host || url;
 
   if (isVerifiedDomain(host)) {
     const badge = document.createElement("span");

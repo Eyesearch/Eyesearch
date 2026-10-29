@@ -156,15 +156,6 @@
   text-transform: uppercase;
 }
 
-.crumb-sep {
-  margin: 0 3px;
-  color: var(--text-faint);
-}
-
-.crumb-leaf {
-  color: var(--text-faint);
-}
-
 /* Category chip, sitting just after the domain. Token colours, so the app's
    manual theme switch covers it without a separate media query. */
 .card-category-badge {
@@ -260,6 +251,8 @@
   overflow-wrap: anywhere;
 }
 
+/* The site's address under the brand. Named for the breadcrumb it used to
+   hold; it now carries only the host. */
 .card-breadcrumb {
   min-width: 0;
   font-size: 0.78rem;

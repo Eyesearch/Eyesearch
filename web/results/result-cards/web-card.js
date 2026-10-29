@@ -122,12 +122,36 @@ export function createWebCard(result, options = {}) {
     favicon.appendChild(tile);
   }
 
-  // Just the site, not the path. The second line answers "whose page is this"
-  // at a glance; the path added noise without helping the reader decide, and
-  // long paths pushed the line into an ellipsis anyway.
+  // The server sends the path as words (agent 34), so the second line can say
+  // "Health › Notifications" instead of a truncated URL. When it does not — an
+  // older row, a federated card — the host alone is still the right answer:
+  // it tells the reader whose page this is.
+  const crumbs = Array.isArray(result.breadcrumbs)
+    ? result.breadcrumbs.map((part) => String(part || "").trim()).filter(Boolean)
+    : [];
+
   const crumb = document.createElement("span");
   crumb.className = "card-breadcrumb";
-  crumb.textContent = host || url;
+  if (crumbs.length) {
+    crumb.appendChild(document.createTextNode(host ? `${host} › ` : ""));
+    crumbs.forEach((part, index) => {
+      if (index > 0) {
+        const sep = document.createElement("span");
+        sep.className = "card-crumb-sep";
+        sep.setAttribute("aria-hidden", "true");
+        // Spaces in the text, not only in the margin: this is read aloud and
+        // extracted as text, and "Dept›Health" is not a breadcrumb there.
+        sep.textContent = " › ";
+        crumb.appendChild(sep);
+      }
+      const span = document.createElement("span");
+      span.className = "card-crumb-part";
+      span.textContent = part;
+      crumb.appendChild(span);
+    });
+  } else {
+    crumb.textContent = host || url;
+  }
 
   if (isVerifiedDomain(host)) {
     const badge = document.createElement("span");
@@ -164,6 +188,55 @@ export function createWebCard(result, options = {}) {
   category.className = "card-category-badge";
   category.textContent = categoryOf(result);
   top.appendChild(category);
+
+  // Federated answers carry a `source`. Showing it is not decoration: the text
+  // came from someone else, and the terms of the endpoints we use require the
+  // attribution to be visible. A card that hides where its answer came from is
+  // worse than no card.
+  const sourceName = String(result.source || "").trim();
+  if (sourceName) {
+    const attribution = document.createElement("div");
+    attribution.className = "card-attribution";
+
+    const label = document.createElement("span");
+    label.className = "card-attribution-label";
+    label.textContent = `Source: ${sourceName.charAt(0).toUpperCase()}${sourceName.slice(1)}`;
+
+    const sourceUrl = String(result.source_url || result.url || "").trim();
+    if (sourceUrl) {
+      const outbound = document.createElement("a");
+      outbound.className = "card-attribution-link";
+      outbound.href = sourceUrl;
+      outbound.target = "_blank";
+      outbound.rel = "noopener noreferrer";
+      outbound.textContent = "View original";
+      attribution.append(label, outbound);
+    } else {
+      attribution.append(label);
+    }
+    body.appendChild(attribution);
+  }
+
+  // Structured facts a card can state outright — a phone number, a PIN code, a
+  // date (agent 45). Only rendered when the server sent some.
+  const entities = result.entities && typeof result.entities === "object" ? result.entities : null;
+  if (entities) {
+    const facts = [
+      ...(Array.isArray(entities.phones) ? entities.phones : []),
+      ...(Array.isArray(entities.pin_codes) ? entities.pin_codes.map((p) => `PIN ${p}`) : []),
+      ...(Array.isArray(entities.dates) ? entities.dates : []),
+    ].filter(Boolean);
+    if (facts.length) {
+      const box = document.createElement("ul");
+      box.className = "card-facts";
+      facts.slice(0, 4).forEach((fact) => {
+        const item = document.createElement("li");
+        item.textContent = String(fact);
+        box.appendChild(item);
+      });
+      body.appendChild(box);
+    }
+  }
 
   const heading = document.createElement("h3");
   heading.className = "card-title";

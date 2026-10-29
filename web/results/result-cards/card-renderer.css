@@ -371,3 +371,63 @@ html[data-theme="dark"] {
   --card-line: #3c4043;
   --card-line-hover: #5f6368;
 }
+
+/* --- breadcrumb parts -------------------------------------------------- */
+/* The server sends the path as words, so the second line can read
+   "karnataka.gov.in › Health › Notifications" rather than a cut-off URL. */
+.card-crumb-sep {
+  color: var(--card-line, #3c4043);
+  opacity: 0.65;
+}
+
+.card-crumb-part {
+  white-space: nowrap;
+}
+
+/* --- federated attribution --------------------------------------------- */
+/* Required by the terms of the endpoints we use, and right regardless: the
+   reader must be able to see that this answer came from someone else. */
+.card-attribution {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  margin: 0 0 0.35em;
+  font-size: 0.78em;
+  line-height: 1.4;
+}
+
+.card-attribution-label {
+  color: var(--card-muted, #5f6368);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.card-attribution-link {
+  color: var(--card-link, #1a0dab);
+  text-decoration: none;
+}
+
+.card-attribution-link:hover,
+.card-attribution-link:focus-visible {
+  text-decoration: underline;
+}
+
+/* --- structured facts --------------------------------------------------- */
+/* Phone numbers, PIN codes and dates, when the server found any. */
+.card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin: 0 0 0.4em;
+  padding: 0;
+  list-style: none;
+}
+
+.card-facts li {
+  padding: 0.12em 0.55em;
+  border: 1px solid var(--card-line, #3c4043);
+  border-radius: 999px;
+  font-size: 0.76em;
+  color: var(--card-muted, #5f6368);
+  white-space: nowrap;
+}

@@ -51,6 +51,8 @@ export const API_CONFIG = Object.freeze({
   defaultLimit: 10,
   maxLimit: 50,
   requestTimeoutMs: 6000,
+  //: One silent retry after this pause, then the error card.
+  retryBackoffMs: 1000,
 });
 
 export class ApiError extends Error {
@@ -111,7 +113,11 @@ function withTimeout(signal, timeoutMs) {
   return { signal: controller.signal, cleanup };
 }
 
-async function request(url, options = {}) {
+/**
+ * One attempt. A search that fails on the gateway is retried once by `request`
+ * below, so the retry lives there and this stays a single round trip.
+ */
+async function attemptRequest(url, options = {}) {
   const { signal, cleanup } = withTimeout(options.signal, API_CONFIG.requestTimeoutMs);
   let response;
   try {
@@ -141,6 +147,35 @@ async function request(url, options = {}) {
     });
   }
   return body;
+}
+
+/**
+ * GET with a single silent retry.
+ *
+ * A gateway that is briefly saturated — the crawler holding connections, a
+ * cold worker, a dropped keep-alive — usually answers on the second try. One
+ * retry after a second turns that into a slightly slower search instead of an
+ * error card. It never retries when the caller aborted, because that means the
+ * user has moved on and the answer is no longer wanted.
+ */
+async function request(url, options = {}) {
+  const callerAborted = () => Boolean(options.signal && options.signal.aborted);
+  let lastError;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await attemptRequest(url, options);
+    } catch (error) {
+      lastError = error;
+      const timedOut = Boolean(
+        error && (error.name === "AbortError" || error.name === "TimeoutError"),
+      );
+      const retryable = error instanceof ApiError ? error.retryable : true;
+      if (attempt === 1 || callerAborted() || (!timedOut && !retryable)) break;
+      await new Promise((resolve) => setTimeout(resolve, API_CONFIG.retryBackoffMs));
+    }
+  }
+  throw lastError;
 }
 
 /**

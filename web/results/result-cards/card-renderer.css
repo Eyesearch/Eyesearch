@@ -115,7 +115,10 @@
 }
 
 /* Brand on top, breadcrumb underneath. */
+/* Reserved height: a card whose brand line is missing would otherwise sit
+   shorter than its neighbour, and the column reads as staggered. */
 .card-headings {
+  min-height: calc(2 * 1.35em);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -268,12 +271,30 @@
   font-size: 13px;
   line-height: 1.45;
   color: var(--result-snippet);
-  /* exactly two lines, with "More" offered when they are not enough */
+  /* Exactly two lines, with "More" offered when they are not enough. The
+     reserved height is what makes rows line up: without it a card with a short
+     snippet ends higher than its neighbour and the column looks staggered. */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  min-height: calc(2 * 1.45em);
+}
+
+/* Unclamped, for measuring only: never visible, never in the flow. */
+.card-snippet.is-measuring {
+  display: block;
+  -webkit-line-clamp: unset;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Expanded by the "More" toggle: the clamp comes off and the text flows. */
+.card-snippet.is-expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
 }
 
 .card-more {

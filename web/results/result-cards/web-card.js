@@ -193,7 +193,11 @@ export function createWebCard(result, options = {}) {
   // came from someone else, and the terms of the endpoints we use require the
   // attribution to be visible. A card that hides where its answer came from is
   // worse than no card.
-  const sourceName = String(result.source || "").trim();
+  // Only a federated result carries text we did not index ourselves. The
+  // `source` field is set on every row — it names the index, not a publisher —
+  // so keying on it put "Source: eyesearch_index" on every card. Attribution is
+  // for someone else's words, and there are none here.
+  const sourceName = result.federated === true ? String(result.source || "").trim() : "";
   if (sourceName) {
     const attribution = document.createElement("div");
     attribution.className = "card-attribution";
@@ -254,22 +258,43 @@ export function createWebCard(result, options = {}) {
   snippet.textContent = snippetText;
   if (!snippetText) snippet.hidden = true;
 
-  // Shown only when the two-line clamp actually cuts text off, so a short
-  // snippet does not advertise a "More" that leads nowhere new.
-  const more = document.createElement("a");
+  // A toggle, not a link away. The snippet is clamped to two lines; when that
+  // clamp actually cuts text off, "More" expands it in place and becomes
+  // "Less". Sending the reader to the site to read a sentence they were already
+  // shown is worse than showing it here.
+  const more = document.createElement("button");
+  more.type = "button";
   more.className = "card-more";
-  more.href = url || "#";
-  more.target = "_blank";
-  more.rel = "noopener noreferrer";
   more.textContent = "More";
   more.hidden = true;
+  more.setAttribute("aria-expanded", "false");
+  more.addEventListener("click", () => {
+    const expanded = snippet.classList.toggle("is-expanded");
+    more.textContent = expanded ? "Less" : "More";
+    more.setAttribute("aria-expanded", expanded ? "true" : "false");
+  });
 
   body.append(top, heading, snippet, more);
 
   // Measure after layout: the card is not in the document yet at this point.
+  //
+  // Comparing scrollHeight to clientHeight is not enough once the snippet has a
+  // reserved two-line height — both come back as two lines, so an overflowing
+  // snippet looks exactly like a short one and "More" never appears. So the text
+  // is measured in an unclamped clone of the same width, which cannot affect the
+  // layout it is measuring.
   if (snippetText) {
     requestAnimationFrame(() => {
-      if (snippet.scrollHeight - snippet.clientHeight > 1) more.hidden = false;
+      const probe = snippet.cloneNode(true);
+      probe.classList.add("is-measuring");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.width = `${snippet.clientWidth}px`;
+      document.body.appendChild(probe);
+      const fullHeight = probe.getBoundingClientRect().height;
+      probe.remove();
+
+      if (fullHeight - snippet.clientHeight > 1) more.hidden = false;
     });
   }
   item.appendChild(body);

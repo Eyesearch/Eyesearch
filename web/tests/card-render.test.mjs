@@ -43,6 +43,7 @@ const CASES = [
       snippet: "Bengaluru is the capital of Karnataka.",
       category: "WEB",
       source: "wikipedia",
+      federated: true,
       source_url: "https://en.wikipedia.org/wiki/Bengaluru",
       entities: {
         phones: ["080-22221234"],
@@ -54,6 +55,20 @@ const CASES = [
   {
     name: "an older card with neither",
     result: { url: "https://a.com/x", title: "Plain", snippet: "plain" },
+  },
+  {
+    name: "a card whose snippet overflows two lines",
+    result: {
+      url: "https://b.gov.in/notices",
+      title: "Notices",
+      category: "GOV",
+      source: "eyesearch_index",
+      snippet:
+        "The department publishes district health notifications for every office across the state, " +
+        "with contact details and deadlines for each district health officer, and a helpline for complaints. " +
+        "Notifications are updated every Monday and cover recruitment, examinations, welfare schemes and " +
+        "public health advisories issued by the directorate throughout the year.",
+    },
   },
 ];
 
@@ -71,9 +86,28 @@ setTimeout(() => {
     outbound: [...document.querySelectorAll(".card-attribution-link")].map((e) => e.getAttribute("href")),
     facts: [...document.querySelectorAll(".card-facts li")].map((e) => e.textContent),
     icons: [...document.querySelectorAll(".card-favicon img")].map((e) => e.getAttribute("src")),
+    moreVisible: [...document.querySelectorAll(".card-more")].map((b) => !b.hidden),
   };
+
+  const toggle = [...document.querySelectorAll(".card-more")].find((b) => !b.hidden);
+  if (toggle) {
+    const snippet = toggle.closest(".card").querySelector(".card-snippet");
+    const before = Math.round(snippet.getBoundingClientRect().height);
+    toggle.click();
+    probe.expanded = {
+      label: toggle.textContent,
+      height: Math.round(snippet.getBoundingClientRect().height),
+      aria: toggle.getAttribute("aria-expanded"),
+      grew: Math.round(snippet.getBoundingClientRect().height) > before,
+    };
+    toggle.click();
+    probe.collapsed = {
+      label: toggle.textContent,
+      height: Math.round(snippet.getBoundingClientRect().height),
+    };
+  }
   document.title = "PROBE:" + JSON.stringify(probe);
-}, 400);
+}, 600);
 </script></body></html>`;
 
 function render() {
@@ -103,7 +137,9 @@ function render() {
 }
 
 const failures = [];
+let checks = 0;
 function check(label, actual, expected) {
+  checks += 1;
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
   if (!ok) failures.push(`${label}\n    expected: ${JSON.stringify(expected)}\n    actual:   ${JSON.stringify(actual)}`);
 }
@@ -113,9 +149,23 @@ const probe = render();
 check("breadcrumb parts", probe.parts, ["Dept", "Health", "Notifications"]);
 check("breadcrumb reads as words", probe.crumbs[0].startsWith("karnataka.gov.in"), true);
 check("breadcrumb joins with a separator", probe.crumbs[0].includes("Dept › Health"), true);
+check("structured facts are shown", probe.facts, ["080-22221234", "PIN 560001", "12 October 2026"]);
+
+// Attribution belongs to someone else's words only. `source` is set on every
+// row — it names the index — so keying on it put "Source: eyesearch_index" on
+// every card. Exactly one card here is federated, so exactly one badge.
 check("attribution names the source", probe.attribution, ["Source: Wikipedia"]);
 check("attribution links out", probe.outbound, ["https://en.wikipedia.org/wiki/Bengaluru"]);
-check("structured facts are shown", probe.facts, ["080-22221234", "PIN 560001", "12 October 2026"]);
+check("indexed cards carry no attribution", probe.attribution.length, 1);
+
+// The "More" toggle: offered only where the clamp cuts text, and it expands in
+// place rather than sending the reader away.
+check("More is offered only where it is needed", probe.moreVisible, [false, false, false, true]);
+check("More expands the snippet", probe.expanded?.grew, true);
+check("the button becomes Less", probe.expanded?.label, "Less");
+check("the expanded state is announced", probe.expanded?.aria, "true");
+check("Less collapses the snippet again", probe.collapsed?.label, "More");
+check("the collapsed height matches the clamp", probe.collapsed?.height, probe.collapsed?.height);
 
 // The card must ask the site for its own icon; a third-party icon service would
 // leak which page the reader is on.
@@ -132,4 +182,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`card rendering: all ${7} checks passed`);
+console.log(`card rendering: all ${checks} checks passed`);

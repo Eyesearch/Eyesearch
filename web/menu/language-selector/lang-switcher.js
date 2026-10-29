@@ -70,6 +70,7 @@ const STRINGS = {
   partial: "Partial results",
   providers: "Sources",
   noResultsTitle: "No results",
+  noResultsFor: 'No results found for "{{query}}"',
   noResultsBody: "Try different words, a shorter query, or check the spelling.",
   degradedNotice: "Some providers did not respond, so these results may be incomplete.",
   errorTitle: "Search failed",

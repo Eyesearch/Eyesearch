@@ -50,7 +50,7 @@ export const API_CONFIG = Object.freeze({
   suggestLimit: 6,
   defaultLimit: 10,
   maxLimit: 50,
-  requestTimeoutMs: 14000,
+  requestTimeoutMs: 6000,
 });
 
 export class ApiError extends Error {
@@ -74,6 +74,7 @@ const ERROR_TEXT = {
   provider_unavailable: "The search providers are not responding.",
   database_error: "The search index is unavailable.",
   internal: "Something went wrong on the gateway.",
+  timeout: "Search is taking longer than usual. Please retry.",
 };
 
 export function errorTextFor(code) {

@@ -217,18 +217,28 @@ async function runSearch(query, { tab = state.tab } = {}) {
     state.lastPayload = payload;
     renderPayload(payload, cleaned, tab, started);
   } catch (error) {
-    if (error && (error.name === "AbortError" || error.name === "TimeoutError")) return;
     if (token !== state.token) return;
+    if (error && (error.name === "AbortError" || error.name === "TimeoutError")) {
+      // The skeleton cards are already on screen. Returning here used to leave
+      // them there for ever, which is what "loading indefinitely" looked like.
+      renderError(new ApiError("The search timed out.", { code: "timeout" }));
+      return;
+    }
     renderError(error);
   } finally {
-    if (token === state.token) setBusy(false);
+    // Always, whichever way the request ended: the busy flag and the latency
+    // readout must not outlive the attempt that set them.
+    if (token === state.token) {
+      setBusy(false);
+      latency.reset();
+    }
   }
 }
 
 function renderPayload(payload, query, tab) {
   const results = payload.results || [];
   if (results.length === 0) {
-    renderEmpty(t("noResultsTitle"), t("noResultsBody"));
+    renderEmpty(t("noResultsFor").replace("{{query}}", query), t("noResultsBody"));
     return;
   }
 

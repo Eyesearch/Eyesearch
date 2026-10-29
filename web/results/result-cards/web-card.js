@@ -97,17 +97,18 @@ export function createWebCard(result, options = {}) {
   favicon.className = "card-favicon";
   if (host) {
     const icon = document.createElement("img");
-    icon.src = `https://icons.duckduckgo.com/ip3/${host}.ico`;
+    // The site's own icon, not a third party's copy of it. This used to fall
+    // back to DuckDuckGo's icon service and then Google's, which meant every
+    // card view told two other companies which page the reader was looking at —
+    // and made the UI depend on two services that can rate-limit or disappear.
+    // A site that serves no icon at /favicon.ico gets a letter tile instead,
+    // which is honest and costs nothing.
+    icon.src = `https://${host}/favicon.ico`;
     icon.alt = "";
     icon.width = 16;
     icon.height = 16;
     icon.loading = "lazy";
     icon.addEventListener("error", () => {
-      if (!icon.dataset.retried) {
-        icon.dataset.retried = "1";
-        icon.src = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(host)}`;
-        return;
-      }
       const tile = document.createElement("span");
       tile.className = "card-favicon-tile";
       tile.textContent = host.charAt(0);

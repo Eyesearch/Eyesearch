@@ -55,6 +55,36 @@ setTimeout(() => {
       const r = c.getBoundingClientRect();
       return { width: Math.round(r.width), height: Math.round(r.height), right: Math.round(r.right) };
     }),
+    snippetLines: [...document.querySelectorAll(".card-snippet")].map((s) => {
+      const lineHeight = parseFloat(getComputedStyle(s).lineHeight);
+      return Math.round((s.clientHeight / lineHeight) * 10) / 10;
+    }),
+    // Whether the text is actually cut off, which is what should decide
+    // whether a card offers "More" — not how long the text happens to look.
+    overflowing: [...document.querySelectorAll(".card-snippet")].map(
+      (s) => s.scrollHeight > s.clientHeight + 1,
+    ),
+    clamp: getComputedStyle(document.querySelector(".card-snippet")).webkitLineClamp,
+    moreVisible: [...document.querySelectorAll(".card-more")].map((b) => !b.hidden),
+    toggle: (() => {
+      const button = [...document.querySelectorAll(".card-more")].find((b) => !b.hidden);
+      if (!button) return null;
+      const snippet = button.closest(".card").querySelector(".card-snippet");
+      const lineHeight = parseFloat(getComputedStyle(snippet).lineHeight);
+      button.click();
+      const expanded = {
+        label: button.textContent,
+        lines: Math.round((snippet.clientHeight / lineHeight) * 10) / 10,
+      };
+      button.click();
+      return {
+        expanded,
+        collapsed: {
+          label: button.textContent,
+          lines: Math.round((snippet.clientHeight / lineHeight) * 10) / 10,
+        },
+      };
+    })(),
     widest: Math.max(...[...document.querySelectorAll(".card, .card *")].map((e) => Math.round(e.getBoundingClientRect().right))),
   };
   document.title = "PROBE:" + JSON.stringify(probe);
@@ -98,12 +128,27 @@ for (const width of [360, 390, 412, 768, 1280]) {
   check(`${where}: the Kannada field is 16px`, p.kannadaInputFont, "16px");
   check(`${where}: every card fits the column`, p.cards.every((c) => c.width <= p.viewport), true);
 
+  // The clamp is two lines everywhere, and no collapsed snippet may render a
+  // third — a mobile rule used to set it to 3 and every card showed three.
+  check(`${where}: the snippet is clamped to two lines`, p.clamp, "2");
+  check(`${where}: no collapsed snippet exceeds two lines`, Math.max(...p.snippetLines) <= 2, true);
+
   if (width <= 600) {
-    // Height follows content on a phone, so cards may differ.
+    // Height follows content on a phone, so cards may differ, and a short
+    // snippet takes one line rather than holding empty space.
     check(`${where}: cards size themselves`, new Set(p.cards.map((c) => c.height)).size > 1, true);
+    check(`${where}: a short snippet takes one line`, Math.min(...p.snippetLines), 1);
   } else {
     check(`${where}: cards share one height`, new Set(p.cards.map((c) => c.height)).size, 1);
   }
+
+  // "More" only where the clamp actually cuts text, and it expands in place.
+  check(`${where}: More is offered exactly where the text is cut`, p.moreVisible, p.overflowing);
+  check(`${where}: at least one card offers More`, p.moreVisible.some(Boolean), true);
+  check(`${where}: More expands past two lines`, p.toggle?.expanded.lines > 2, true);
+  check(`${where}: the label becomes Less`, p.toggle?.expanded.label, "Less");
+  check(`${where}: Less collapses to two lines`, p.toggle?.collapsed.lines, 2);
+  check(`${where}: the label returns to More`, p.toggle?.collapsed.label, "More");
 }
 
 if (failures.length) {

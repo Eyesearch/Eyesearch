@@ -2,6 +2,7 @@
    Voice and camera are inline buttons between the field and the search button. */
 
 .search-form {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -156,10 +157,6 @@
 }
 
 /* ---------- autocomplete dropdown ---------- */
-
-.search-form {
-  position: relative;
-}
 
 .search-suggestions {
   position: absolute;

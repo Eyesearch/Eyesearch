@@ -424,6 +424,11 @@ button {
 
 /* ---------- footer ---------- */
 
+/* These three are mobile overrides. The @media line above them was lost when
+   this block was added, so they applied at every width: desktop was getting
+   28px of top padding instead of the clamp() above, and .results was getting
+   the narrow gutter. */
+@media (max-width: 640px) {
   .home {
     padding-top: 28px;
   }

@@ -103,11 +103,6 @@
   display: block;
 }
 
-.card-body {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
 .card-top {
   display: flex;
   align-items: center;
@@ -148,15 +143,6 @@
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-}
-
-.card-breadcrumb {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12.5px;
-  color: var(--text-muted);
 }
 
 .crumb-sep {
@@ -226,6 +212,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .card-title {
@@ -251,6 +239,7 @@
 }
 
 .card-breadcrumb {
+  min-width: 0;
   font-size: 0.78rem;
   line-height: 1.3;
   color: var(--muted, #5f6368);

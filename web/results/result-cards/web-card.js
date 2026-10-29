@@ -76,10 +76,21 @@ function categoryOf(result) {
  * A card that has been expanded by its own "More" toggle grows past this, which
  * is the point — the minimum keeps the collapsed rows aligned.
  */
+//: Below this width the cards size themselves instead of sharing a height.
+const MOBILE_BREAKPOINT = 600;
+
 export function equaliseCardHeights(container) {
   if (!container) return;
   const cards = [...container.querySelectorAll(".card")];
   if (cards.length < 2) return;
+
+  // On a phone the column is the screen, so every card would inherit the height
+  // of the tallest one — a single long result would make the whole list tall.
+  // There, height follows the content.
+  if (typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT) {
+    container.style.removeProperty("--card-min-h");
+    return;
+  }
 
   // Clear the previous value first: measuring while the floor is still applied
   // would measure the floor, and the height could only ever grow.

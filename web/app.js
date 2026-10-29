@@ -255,6 +255,14 @@ function renderPayload(payload, query, tab) {
   equaliseCardHeights(els.cards);
 
   if (payload.degraded) showNotice(t("degradedNotice"));
+
+  // Re-equalise when the window changes size: the cards are laid out again, and
+  // a floor measured at the old width is wrong at the new one. Crossing the
+  // mobile breakpoint removes it entirely.
+  window.addEventListener("resize", () => {
+    if (state.resizeTimer) clearTimeout(state.resizeTimer);
+    state.resizeTimer = setTimeout(() => equaliseCardHeights(els.cards), 120);
+  });
 }
 
 /** Reset to the home hero: clear results, the URL and the in-flight request. */

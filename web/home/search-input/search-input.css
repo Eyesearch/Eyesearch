@@ -189,7 +189,10 @@
   background: transparent;
   color: var(--text);
   font-family: var(--font-kannada);
-  font-size: 14px;
+  /* 16px on purpose: iOS Safari and mobile Chrome zoom the viewport when a
+     field smaller than this takes focus, which is the "unintended zoom" this
+     is here to stop. */
+  font-size: 16px;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;

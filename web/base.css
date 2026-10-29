@@ -90,10 +90,19 @@ html[data-theme="dark"] {
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* Nothing may push the page sideways. A single overflowing child is enough
+     to make a phone scroll horizontally, and that reads as a broken page. */
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -790,5 +799,36 @@ button {
 @media (max-width: 640px) {
   .history-view {
     padding: 14px 14px 40px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Mobile
+   ---------------------------------------------------------------------------
+   The desktop layout is a fixed 652px column with a reserved card height. On a
+   phone neither applies: the column is the screen, and a height reserved from
+   the tallest card would make every card as tall as the worst one. */
+@media (max-width: 600px) {
+  html,
+  body {
+    /* 100vw rather than 100% here only: on a phone there is no scrollbar to
+       account for, and this is what stops a wide child from widening the page. */
+    max-width: 100vw;
+  }
+
+  .card {
+    /* Height follows the content on a phone. */
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .card-breadcrumb {
+    /* A long host or path truncates instead of pushing the card wider. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
   }
 }

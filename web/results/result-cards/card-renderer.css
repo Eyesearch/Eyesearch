@@ -113,6 +113,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  min-height: 20px;
   margin-bottom: 3px;
 }
 
@@ -173,7 +174,8 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  margin-left: 6px;
+  margin-left: auto;
+  align-self: flex-start;
   padding: 1px 6px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -285,13 +287,6 @@
 
 .card-more[hidden] {
   display: none;
-}
-
-.card-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 20px;
 }
 
 .card .hl,

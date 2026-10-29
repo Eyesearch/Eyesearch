@@ -150,16 +150,6 @@ export function createWebCard(result, options = {}) {
     crumb.appendChild(span);
   });
 
-  const category = document.createElement("span");
-  category.className = "card-category-badge";
-  category.textContent = categoryOf(result);
-  // Straight after the domain, ahead of any path segments.
-  if (crumb.firstChild && crumb.firstChild.nextSibling) {
-    crumb.insertBefore(category, crumb.firstChild.nextSibling);
-  } else {
-    crumb.appendChild(category);
-  }
-
   if (isVerifiedDomain(host)) {
     const badge = document.createElement("span");
     badge.className = "card-verified";
@@ -174,6 +164,13 @@ export function createWebCard(result, options = {}) {
   }
 
   top.append(favicon, crumb);
+
+  // Direct child of the header row, not of the breadcrumb: the crumb clips its
+  // overflow, so a chip inside it can never reach the card's right edge.
+  const category = document.createElement("span");
+  category.className = "card-category-badge";
+  category.textContent = categoryOf(result);
+  top.appendChild(category);
 
   const heading = document.createElement("h3");
   heading.className = "card-title";

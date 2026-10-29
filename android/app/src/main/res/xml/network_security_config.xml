@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The app is HTTPS-only except for the API host, which is currently reached over
+  plain HTTP on the VM. Scoping the exception to that one domain keeps every
+  other request on TLS; once the API is behind a TLS reverse proxy, delete this
+  file and the manifest reference and nothing else changes.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">35.255.20.40</domain>
+    </domain-config>
+</network-security-config>

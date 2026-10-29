@@ -135,9 +135,16 @@ export function createWebCard(result, options = {}) {
     favicon.appendChild(tile);
   }
 
+  // The server's breadcrumb wins when it has one: it is built from the page's
+  // real path and knows the publisher's name, which a hostname does not. The
+  // local reconstruction stays for results indexed before that field existed.
+  const serverCrumb = String(result.clean_url || "").trim();
   const crumb = document.createElement("span");
   crumb.className = "card-breadcrumb";
-  breadcrumbParts(url).forEach((part, index) => {
+
+  if (serverCrumb) {
+    crumb.textContent = serverCrumb;
+  } else breadcrumbParts(url).forEach((part, index) => {
     if (index > 0) {
       const sep = document.createElement("span");
       sep.className = "crumb-sep";
@@ -163,7 +170,15 @@ export function createWebCard(result, options = {}) {
     crumb.appendChild(badge);
   }
 
-  top.append(favicon, crumb);
+  const brandName = String(result.brand_name || "").trim();
+  if (brandName) {
+    const brand = document.createElement("span");
+    brand.className = "card-brand";
+    brand.textContent = brandName;
+    top.append(favicon, brand, crumb);
+  } else {
+    top.append(favicon, crumb);
+  }
 
   // Direct child of the header row, not of the breadcrumb: the crumb clips its
   // overflow, so a chip inside it can never reach the card's right edge.

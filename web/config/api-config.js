@@ -8,7 +8,18 @@
  * Nothing else in the app knows the backend URL, the limits or the error codes.
  */
 
-const DEFAULT_BASE = "https://eyesearch-backend.onrender.com";
+/**
+ * Same origin by default. The static host proxies /v1/* and /health to the VM
+ * (see netlify.toml and vercel.json), so the browser only ever talks HTTPS to
+ * the host it loaded the page from and the plain-HTTP hop to the VM happens
+ * server-side. Pointing this at http://<vm-ip>:8000 directly would be blocked
+ * as mixed content on any HTTPS page.
+ *
+ * Set window.EYESEARCH_API_BASE before this module loads to override it — that
+ * is what a GitHub Pages deployment needs, because Pages cannot proxy.
+ */
+const DEFAULT_BASE = "";
+const LOCAL_DEV_BASE = "http://127.0.0.1:8000";
 
 /**
  * Resolution order: an explicit runtime override, then the configured default.
@@ -19,8 +30,13 @@ const DEFAULT_BASE = "https://eyesearch-backend.onrender.com";
 function resolveBaseUrl() {
   const hasOverride =
     typeof window !== "undefined" && typeof window.EYESEARCH_API_BASE === "string";
-  const base = hasOverride ? window.EYESEARCH_API_BASE : DEFAULT_BASE;
-  return base.replace(/\/+$/, "");
+  if (hasOverride) return String(window.EYESEARCH_API_BASE).replace(/\/+$/, "");
+
+  // Served from a file or a dev server: the API is on this machine.
+  const host = typeof location !== "undefined" ? location.hostname : "";
+  if (host === "localhost" || host === "127.0.0.1") return LOCAL_DEV_BASE;
+
+  return DEFAULT_BASE.replace(/\/+$/, "");
 }
 
 export const API_CONFIG = Object.freeze({

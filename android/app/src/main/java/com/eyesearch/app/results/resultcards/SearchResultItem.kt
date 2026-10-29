@@ -16,12 +16,21 @@ data class SearchResultItem(
     val kind: String,
     val thumbnailUrl: String? = null,
     val posterUrl: String? = null,
+    /** The publisher's own name, e.g. "Karnataka Health Department". */
+    val brandName: String? = null,
+    /** The server-built breadcrumb, e.g. "karnataka.gov.in › health". */
+    val cleanUrl: String? = null,
 ) {
     val host: String
         get() = runCatching { java.net.URI(url).host?.removePrefix("www.").orEmpty() }.getOrDefault("")
 
+    /**
+     * The server's breadcrumb when it has one, so the app and the web show the
+     * same string. The local reconstruction stays as the fallback for results
+     * indexed before that field existed.
+     */
     val breadcrumb: String
-        get() = runCatching {
+        get() = cleanUrl?.takeIf { it.isNotBlank() } ?: runCatching {
             val uri = java.net.URI(url)
             val segments = uri.path.orEmpty().split("/").filter { it.isNotBlank() }.take(2)
                 .map { it.replace(Regex("\\.(html?|php|aspx?)$"), "").replace('-', ' ') }

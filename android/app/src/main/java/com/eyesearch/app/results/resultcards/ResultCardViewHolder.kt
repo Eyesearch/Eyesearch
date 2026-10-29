@@ -20,6 +20,12 @@ class ResultCardViewHolder(
 ) : RecyclerView.ViewHolder(binding.root) {
 
     fun bind(item: SearchResultItem, terms: List<String>, onClick: (SearchResultItem) -> Unit) {
+        // The brand is the site's own name; the breadcrumb is where on the site
+        // this page sits. Both come from the server, which knows them better
+        // than a hostname does.
+        val brand = item.brandName.orEmpty().trim()
+        binding.brandName.text = brand
+        binding.brandName.visibility = if (brand.isEmpty()) View.GONE else View.VISIBLE
         binding.breadcrumb.text = item.breadcrumb
         binding.faviconTile.text = item.host.take(1).uppercase().ifBlank { "?" }
         binding.resultTitle.text = item.title

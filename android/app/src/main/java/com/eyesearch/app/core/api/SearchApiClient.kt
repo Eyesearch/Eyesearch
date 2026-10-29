@@ -105,6 +105,8 @@ class SearchApiClient(
                 kind = item.optString("kind").ifBlank { "web" },
                 thumbnailUrl = item.optString("thumbnail_url").takeIf { it.isNotBlank() && it != "null" },
                 posterUrl = item.optString("poster_url").takeIf { it.isNotBlank() && it != "null" },
+                brandName = item.optString("brand_name").takeIf { it.isNotBlank() && it != "null" },
+                cleanUrl = item.optString("clean_url").takeIf { it.isNotBlank() && it != "null" },
             )
         }
 

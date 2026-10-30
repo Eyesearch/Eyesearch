@@ -407,7 +407,10 @@ window.addEventListener("popstate", (event) => {
 
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch((error) => {
+    // The query string is the point: a different URL is a different worker, so the
+    // browser fetches this one instead of keeping the cached script that pinned
+    // the old gateway. Bump it with CACHE_NAME in sw.js.
+    navigator.serviceWorker.register("./sw.js?v=5").catch((error) => {
       console.warn("eyesearch: service worker registration failed", error);
     });
   });

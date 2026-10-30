@@ -8,7 +8,10 @@
  *   - Cache-first is safe here because every asset is versioned by CACHE_NAME;
  *     bump it and the old cache is dropped on activate.
  */
-const CACHE_NAME = "eyesearch-v4";
+// Bump this whenever a precached file changes. `activate` deletes every cache
+// whose name differs, so the old api-config.js — the one that pointed at the
+// dead Render host — is dropped instead of served forever.
+const CACHE_NAME = "eyesearch-v5";
 const OFFLINE_URL = "./index.html";
 
 const PRECACHE = [

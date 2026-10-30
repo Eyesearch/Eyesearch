@@ -2,6 +2,12 @@
 <html lang="en" data-theme="system">
 <head>
   <meta charset="utf-8" />
+  <!-- Belt and braces. These hints are not what fixes a stale gateway — the
+       service worker cache is — and browsers do not reliably honour them for
+       caching. The versioned script URL above and the cache bump in sw.js do
+       the real work. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>eyesearch</title>
   <meta name="description" content="eyesearch — a unified search gateway. One query, live web results, clean cards." />
@@ -97,6 +103,6 @@
     </section>
   </main>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=5"></script>
 </body>
 </html>

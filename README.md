@@ -77,7 +77,7 @@ https://github.com/Eyesearch/Eyesearch-Backend (`app/engine/`, `app/crawler/`,
 ## Gateway
 
 Both clients talk to the same backend — https://github.com/Eyesearch/Eyesearch-Backend
-— currently deployed at `https://eyesearch-backend.onrender.com`:
+— deployed on the VM at `https://eyesearch.duckdns.org`:
 
 - `GET /v1/search?q=&limit=&page=` — structured cards (web UI, Android results)
 - `POST /v1/retrieve {query, format}` — token-optimised context (the AI tab)

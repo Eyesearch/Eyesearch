@@ -15,7 +15,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         // The gateway this build talks to; override per flavour when needed.
-        buildConfigField("String", "EYESEARCH_API_BASE", "\"https://eyesearch-backend.onrender.com\"")
+        buildConfigField("String", "EYESEARCH_API_BASE", "\"https://eyesearch.duckdns.org\"")
     }
 
     buildFeatures {

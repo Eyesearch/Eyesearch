@@ -89,6 +89,14 @@ setTimeout(() => {
     facts: [...document.querySelectorAll(".card-facts li")].map((e) => e.textContent),
     icons: [...document.querySelectorAll(".card-favicon img")].map((e) => e.getAttribute("src")),
     moreVisible: [...document.querySelectorAll(".card-more")].map((b) => !b.hidden),
+    labels: {
+      sixteen: ${JSON.stringify(["GOV","FIN","LEGAL","TECH","EDU","NEWS","JOBS","HEALTH","TRANS","UTIL","COMM","SOCIAL","CORP","FOOD","MEDIA","WEB"])}.map(
+        (code) => CATEGORY_LABELS[code] || null
+      ),
+      trans: categoryOf({ category: "TRANS" }),
+      unknown: categoryOf({ category: "ZZZ" }),
+      fallback: categoryOf({ kind: "web" }),
+    },
     heights: [...document.querySelectorAll(".card")].map((c) => ({
       height: Math.round(c.getBoundingClientRect().height),
       federated: Boolean(c.querySelector(".card-attribution")),
@@ -152,7 +160,15 @@ function render() {
     );
     const start = dom.indexOf("PROBE:");
     const end = dom.indexOf("</title>", start);
-    return JSON.parse(dom.slice(start + 6, end).replace(/&quot;/g, '"'));
+    // --dump-dom HTML-escapes the title, so anything the page reported with an
+    // ampersand comes back as &amp;. Decode it, or a label like
+    // "Travel & Transit" fails a test that is actually passing.
+    return JSON.parse(
+      dom
+        .slice(start + 6, end)
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, "&")
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -169,6 +185,16 @@ function check(label, actual, expected) {
 const probe = render();
 
 check("breadcrumb parts", probe.parts, ["Dept", "Health", "Notifications"]);
+
+// --- category labels, read inside the page where the module lives ----------
+check(
+  "all sixteen categories have a label",
+  probe.labels.sixteen.every((label) => typeof label === "string" && label.length > 0),
+  true,
+);
+check("travel reads as words", probe.labels.trans, "Travel & Transit");
+check("an unknown code renders as itself", probe.labels.unknown, "ZZZ");
+check("a result with no category still gets a chip", probe.labels.fallback, "WEB");
 check("breadcrumb reads as words", probe.crumbs[0].startsWith("karnataka.gov.in"), true);
 check("breadcrumb joins with a separator", probe.crumbs[0].includes("Dept › Health"), true);
 check("structured facts are shown", probe.facts, ["080-22221234", "PIN 560001", "12 October 2026"]);

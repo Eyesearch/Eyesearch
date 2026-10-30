@@ -44,16 +44,45 @@ function isVerifiedDomain(host) {
 const KIND_LABEL = { video: "Video", image: "Image", news: "News", film: "Film", document: "PDF" };
 
 /**
+ * The sixteen categories, as a reader would say them.
+ *
+ * A code with no label here still renders — as the code itself — which is what
+ * keeps the UI working when the backend grows a category before this file does.
+ */
+const CATEGORY_LABELS = Object.freeze({
+  GOV: "Government",
+  FIN: "Finance",
+  LEGAL: "Legal & Courts",
+  TECH: "Tech & Dev",
+  EDU: "Education",
+  NEWS: "News & Media",
+  JOBS: "Careers & Jobs",
+  HEALTH: "Healthcare",
+  TRANS: "Travel & Transit",
+  UTIL: "Utilities",
+  COMM: "Commerce",
+  SOCIAL: "Community",
+  CORP: "Business",
+  FOOD: "Food & Dining",
+  MEDIA: "Entertain",
+  WEB: "Web",
+});
+
+/**
  * Every card carries a category chip, so a reader can tell a gazette notice from
  * a news item without opening either. `web` is the default rather than a gap:
  * a card with no chip looks like a bug next to one that has it.
  */
 function categoryOf(result) {
-  // The server already sends a short upper-case code (GOV, TECH, FINANCE…), and
-  // it knows the page's category from the classifier rather than from the media
-  // kind. Kind is the fallback for rows indexed before categories were returned.
+  // The server sends a short code from the sixteen the classifier assigns. The
+  // badge shows the readable label; an unknown code is shown as itself rather
+  // than hidden, so a new category appears in the UI the day the server starts
+  // emitting it instead of waiting for a frontend release.
   const fromServer = String(result.category || "").trim();
-  if (fromServer) return fromServer.toUpperCase();
+  if (fromServer) {
+    const code = fromServer.toUpperCase();
+    return CATEGORY_LABELS[code] || code;
+  }
 
   const raw = KIND_LABEL[result.kind] || result.kind || "";
   const cleaned = String(raw).replace(/[_-]+/g, " ").trim().toUpperCase();

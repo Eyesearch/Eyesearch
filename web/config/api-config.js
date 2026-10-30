@@ -21,6 +21,22 @@ const DEFAULT_BASE = "https://eyesearch.duckdns.org";
 const LOCAL_DEV_BASE = "http://127.0.0.1:8000";
 
 /**
+ * The VM's address, for pages that are themselves served over plain HTTP.
+ *
+ * It is NOT a fallback for the HTTPS site. A browser blocks an http:// request
+ * from an https:// page as mixed content — Chrome refuses it outright, before
+ * the request leaves the machine — so pointing this at the IP from
+ * eyesearch.github.io would break search rather than fix it. The same VM is
+ * already reachable over TLS at DEFAULT_BASE above, which is why that stays the
+ * default.
+ *
+ * It is used only when the page is served over http:// from somewhere that is
+ * not localhost: opening the app directly from the VM, or on a machine on the
+ * same network.
+ */
+const PLAIN_HTTP_BASE = "http://35.255.20.40:8000";
+
+/**
  * Resolution order: an explicit runtime override, then the configured default.
  * The override is authoritative even when it is the empty string, which means
  * "same origin as this page" — that is how local development and the automated
@@ -34,6 +50,11 @@ function resolveBaseUrl() {
   // Served from a file or a dev server: the API is on this machine.
   const host = typeof location !== "undefined" ? location.hostname : "";
   if (host === "localhost" || host === "127.0.0.1") return LOCAL_DEV_BASE;
+
+  // A page served over http:// can reach an http:// API; one served over
+  // https:// cannot. The protocol of the page decides, not a preference.
+  const protocol = typeof location !== "undefined" ? location.protocol : "";
+  if (protocol === "http:") return PLAIN_HTTP_BASE;
 
   return DEFAULT_BASE.replace(/\/+$/, "");
 }

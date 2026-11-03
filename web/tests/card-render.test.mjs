@@ -19,7 +19,9 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
 const CARD_JS = readFileSync(join(root, "web/results/result-cards/web-card.js"), "utf8")
-  .replace("export function createWebCard", "function createWebCard")
+  // Every export is stripped in one pass. Naming them individually meant a
+  // new function in the module broke every test that inlines it.
+  .replace(/^export /gm, "")
   .replace("export function equaliseCardHeights", "function equaliseCardHeights");
 const BASE_CSS = readFileSync(join(root, "web/base.css"), "utf8");
 const CARD_CSS = readFileSync(join(root, "web/results/result-cards/card-renderer.css"), "utf8");

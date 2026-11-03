@@ -17,8 +17,9 @@ const root = fileURLToPath(new URL("../..", import.meta.url));
 const read = (path) => readFileSync(join(root, path), "utf8");
 
 const CARD_JS = read("web/results/result-cards/web-card.js")
-  .replace("export function createWebCard", "function createWebCard")
-  .replace("export function equaliseCardHeights", "function equaliseCardHeights");
+  // Every export stripped in one pass: naming them individually meant a new
+  // function in the module broke every test that inlines it.
+  .replace(/^export /gm, "");
 
 const STYLES = [read("web/base.css"), read("web/home/search-input/search-input.css"), read("web/results/result-cards/card-renderer.css")]
   .map((css) => `<style>${css}</style>`)

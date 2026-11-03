@@ -135,6 +135,109 @@ export function equaliseCardHeights(container) {
   container.style.setProperty("--card-min-h", `${tallest}px`);
 }
 
+/**
+ * The hero card: an external answer shown above the crawled results.
+ *
+ * Deliberately a different shape from a search result. It is one card, it is
+ * larger, and it says where it came from — a federated answer is a claim from
+ * somewhere else, and the reader is entitled to know that before they read it.
+ * Presenting it as an ordinary result would make it look like a page we
+ * crawled and verified.
+ */
+export function createKnowledgeHero(card, options = {}) {
+  if (!card || (!card.title && !card.snippet_short && !card.snippet)) return null;
+
+  const section = document.createElement("section");
+  section.className = "knowledge-hero-card";
+  section.setAttribute("aria-label", card.title || "Knowledge panel");
+
+  const head = document.createElement("div");
+  head.className = "knowledge-hero-head";
+
+  const title = document.createElement("h2");
+  title.className = "knowledge-hero-title";
+  title.textContent = card.title || hostOf(card.url || "");
+  head.appendChild(title);
+
+  const badge = document.createElement("span");
+  badge.className = "knowledge-hero-badge";
+  badge.textContent = card.brand || card.brand_name || card.source || "external";
+  head.appendChild(badge);
+  section.appendChild(head);
+
+  const body = document.createElement("p");
+  body.className = "knowledge-hero-snippet";
+  // The short field is what shows; `has_more` decides whether a toggle exists.
+  const shortText = card.snippet_short || card.snippet || "";
+  const fullText = card.snippet_full || shortText;
+  body.textContent = shortText;
+  section.appendChild(body);
+
+  if (card.has_more && fullText.length > shortText.length) {
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "knowledge-hero-more";
+    toggle.textContent = options.moreLabel || "More";
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.addEventListener("click", () => {
+      const expanded = toggle.getAttribute("aria-expanded") === "true";
+      toggle.setAttribute("aria-expanded", expanded ? "false" : "true");
+      body.textContent = expanded ? shortText : fullText;
+      toggle.textContent = expanded ? (options.moreLabel || "More") : (options.lessLabel || "Less");
+    });
+    section.appendChild(toggle);
+  }
+
+  if (card.url) {
+    const link = document.createElement("a");
+    link.className = "knowledge-hero-link";
+    link.href = card.url;
+    link.rel = "noopener noreferrer";
+    link.target = "_blank";
+    link.textContent = hostOf(card.url) || card.url;
+    section.appendChild(link);
+  }
+
+  return section;
+}
+
+/**
+ * The secondary cards, as a row of chips.
+ *
+ * Small on purpose: they are a hint that more is available, not a second set of
+ * results competing with the list below.
+ */
+export function createKnowledgeChips(cards, options = {}) {
+  const usable = (cards || []).filter((card) => card && card.url && (card.title || card.snippet_short));
+  if (usable.length === 0) return null;
+
+  const section = document.createElement("section");
+  section.className = "knowledge-card-chips";
+  section.setAttribute("aria-label", options.label || "Related knowledge cards");
+
+  usable.forEach((card) => {
+    const chip = document.createElement("a");
+    chip.className = "knowledge-card-chip";
+    chip.href = card.url;
+    chip.rel = "noopener noreferrer";
+    chip.target = "_blank";
+
+    const label = document.createElement("span");
+    label.className = "knowledge-card-chip-title";
+    label.textContent = card.title || hostOf(card.url);
+    chip.appendChild(label);
+
+    const source = document.createElement("span");
+    source.className = "knowledge-card-chip-source";
+    source.textContent = card.brand || card.brand_name || card.source || hostOf(card.url);
+    chip.appendChild(source);
+
+    section.appendChild(chip);
+  });
+
+  return section;
+}
+
 export function createWebCard(result, options = {}) {
   const item = document.createElement("article");
   item.className = "card";

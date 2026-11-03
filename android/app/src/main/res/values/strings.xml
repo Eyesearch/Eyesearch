@@ -24,4 +24,8 @@
     <string name="delete">Delete</string>
     <string name="no_results">No results. Try different words.</string>
     <string name="retry">Try again</string>
+    <string name="knowledge_more">More</string>
+    <string name="knowledge_less">Less</string>
+    <string name="knowledge_panel">Knowledge panel</string>
+    <string name="knowledge_related">Related knowledge</string>
 </resources>

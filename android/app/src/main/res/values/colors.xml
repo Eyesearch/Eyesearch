@@ -6,6 +6,8 @@
     <color name="app_background">#FFFFFF</color>
     <color name="card_surface">#FFFFFF</color>
     <color name="divider">#E4E6EB</color>
+    <!-- The badge behind a knowledge card's source name. -->
+    <color name="chip_surface">#EDF1F6</color>
     <color name="text_primary">#14161A</color>
     <color name="text_muted">#5C636E</color>
     <color name="link">#2F6DF6</color>

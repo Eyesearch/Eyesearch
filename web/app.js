@@ -27,7 +27,12 @@ import { addHistory } from "./profile/local-history/history-manager.js";
 import { mountClearHistory } from "./profile/local-history/clear-history.js";
 import { mountHistoryView } from "./profile/local-history/history-view.js";
 import { mountTabSwitcher } from "./results/nav-tabs/tab-switcher.js";
-import { createWebCard, equaliseCardHeights } from "./results/result-cards/web-card.js";
+import {
+  createKnowledgeChips,
+  createKnowledgeHero,
+  createWebCard,
+  equaliseCardHeights,
+} from "./results/result-cards/web-card.js";
 import { mountChatPanel } from "./results/ai-chat/chat-panel.js";
 
 const mount = (name) => document.querySelector(`[data-mount="${name}"]`);
@@ -244,6 +249,19 @@ function renderPayload(payload, query, tab) {
 
   els.cards.textContent = "";
   const fragment = document.createDocumentFragment();
+
+  // The knowledge panel goes above the list and is rendered from its own keys.
+  // It is not part of `results`: those are pages we crawled, and an external
+  // answer mixed into that list would look like one of them.
+  const hero = createKnowledgeHero(payload.primary_card, {
+    moreLabel: t("more"),
+    lessLabel: t("less"),
+  });
+  if (hero) fragment.appendChild(hero);
+
+  const chips = createKnowledgeChips(payload.knowledge_cards, { label: t("relatedKnowledge") });
+  if (chips) fragment.appendChild(chips);
+
   results.forEach((result) => {
     fragment.appendChild(createWebCard(result, { terms: terms(query), compact: tab === "ai" }));
   });

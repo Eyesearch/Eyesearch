@@ -482,3 +482,175 @@ html[data-theme="dark"] {
   color: var(--card-muted, #5f6368);
   white-space: nowrap;
 }
+
+/* ---------------------------------------------------------------------------
+   Knowledge panel
+
+   The external answer and its siblings. Styled to read as a distinct kind of
+   thing rather than another result: a tinted panel above the list, with the
+   source named, so a reader can tell a federated claim from a page we crawled.
+   --------------------------------------------------------------------------- */
+
+.knowledge-hero-card {
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border, #e3e6ea);
+  background: var(--surface-raised, #f7f9fb);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06);
+}
+
+.knowledge-hero-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.knowledge-hero-title {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  font-weight: 650;
+  color: var(--text, #14181d);
+}
+
+.knowledge-hero-badge {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--badge-bg, #e8eef5);
+  color: var(--badge-fg, #46536b);
+  white-space: nowrap;
+}
+
+.knowledge-hero-snippet {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-muted, #3d4753);
+}
+
+.knowledge-hero-more {
+  margin-top: 8px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #d6dbe2);
+  background: transparent;
+  color: var(--link, #1a56b8);
+  cursor: pointer;
+}
+
+.knowledge-hero-more:hover,
+.knowledge-hero-more:focus-visible {
+  background: var(--hover, #eef2f7);
+}
+
+.knowledge-hero-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--link, #1a56b8);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.knowledge-hero-link:hover,
+.knowledge-hero-link:focus-visible {
+  text-decoration: underline;
+}
+
+.knowledge-card-chips {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 14px;
+  margin-bottom: 8px;
+  scrollbar-width: thin;
+}
+
+.knowledge-card-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 148px;
+  max-width: 220px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #e3e6ea);
+  background: var(--surface, #fff);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.knowledge-card-chip:hover,
+.knowledge-card-chip:focus-visible {
+  border-color: var(--link, #1a56b8);
+}
+
+.knowledge-card-chip-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text, #14181d);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.knowledge-card-chip-source {
+  font-size: 0.75rem;
+  color: var(--text-muted, #5b6675);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dark theme. The app toggles this attribute; a panel that stays white on a
+   dark page reads as a bug rather than as emphasis. */
+[data-theme="dark"] .knowledge-hero-card {
+  background: #1b2028;
+  border-color: #2b3340;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .knowledge-hero-title,
+[data-theme="dark"] .knowledge-card-chip-title {
+  color: #eef2f7;
+}
+
+[data-theme="dark"] .knowledge-hero-snippet,
+[data-theme="dark"] .knowledge-card-chip-source {
+  color: #aab4c2;
+}
+
+[data-theme="dark"] .knowledge-hero-badge {
+  background: #26303c;
+  color: #b9c6d6;
+}
+
+[data-theme="dark"] .knowledge-card-chip {
+  background: #1b2028;
+  border-color: #2b3340;
+}
+
+@media (max-width: 600px) {
+  .knowledge-hero-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .knowledge-hero-title {
+    font-size: 1.05rem;
+  }
+  .knowledge-card-chip {
+    min-width: 132px;
+  }
+}

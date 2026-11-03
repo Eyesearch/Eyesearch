@@ -17,11 +17,13 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.eyesearch.app.MainActivity
+import com.eyesearch.app.core.api.SearchResponse
 import com.eyesearch.app.databinding.FragmentResultsBinding
 import com.eyesearch.app.home.mediatools.CameraSearchHelper
 import com.eyesearch.app.home.mediatools.VoiceSearchHelper
 import com.eyesearch.app.profile.history.HistoryRepository
 import com.eyesearch.app.results.resultcards.ResultsAdapter
+import com.eyesearch.app.results.resultcards.ResultsRow
 import kotlinx.coroutines.launch
 
 /**
@@ -50,6 +52,7 @@ class ResultsFragment : Fragment() {
         adapter = ResultsAdapter(
             terms = { termsFor(viewModel.state.value.query) },
             onClick = { item -> openUrl(item.url) },
+            onOpenExternal = { url -> openUrl(url) },
         )
         binding.resultsList.layoutManager = LinearLayoutManager(requireContext())
         binding.resultsList.adapter = adapter
@@ -82,6 +85,20 @@ class ResultsFragment : Fragment() {
         }
     }
 
+    /**
+     * The hero card first, then the indexed results.
+     *
+     * The hero is a row of the same list so it scrolls with everything else.
+     * `results` is left untouched: those are pages we crawled, and the hero is
+     * not one of them.
+     */
+    private fun rowsOf(payload: SearchResponse?): List<ResultsRow> {
+        val rows = mutableListOf<ResultsRow>()
+        payload?.primaryCard?.let { rows += ResultsRow.Hero(it) }
+        payload?.results.orEmpty().forEach { rows += ResultsRow.Result(it) }
+        return rows
+    }
+
     private fun render(state: ResultsUiState) {
         when (state.status) {
             is ResultsStatus.Idle -> {
@@ -98,7 +115,7 @@ class ResultsFragment : Fragment() {
             is ResultsStatus.Success -> {
                 binding.statusText.visibility = View.GONE
                 state.payload?.let { binding.latency.update(it.meta, it.results.size) }
-                adapter.submitList(state.payload?.results.orEmpty())
+                adapter.submitList(rowsOf(state.payload))
             }
 
             is ResultsStatus.Empty -> {

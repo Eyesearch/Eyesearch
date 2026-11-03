@@ -130,7 +130,48 @@ class SearchApiClient(
             failedProviders = failed,
             totalEstimate = json.optInt("total_estimate", -1).takeIf { it >= 0 },
         )
-        return SearchResponse(meta = meta, results = results)
+        return SearchResponse(
+            meta = meta,
+            results = results,
+            primaryCard = json.optJSONObject("primary_card")?.let(::parseKnowledgeCard),
+            knowledgeCards = json.optJSONArray("knowledge_cards").toKnowledgeCards(),
+        )
+    }
+
+    /**
+     * One external card, or null when it carries no link.
+     *
+     * A card without a URL cannot be opened, and a card the reader cannot open
+     * is a card that should not be shown.
+     */
+    private fun parseKnowledgeCard(item: JSONObject): KnowledgeCard? {
+        val url = item.optString("url").orEmpty()
+        if (url.isBlank()) return null
+        val title = item.optString("title").orEmpty()
+        val short = item.optString("snippet_short").orEmpty()
+            .ifBlank { item.optString("snippet").orEmpty() }
+        if (title.isBlank() && short.isBlank()) return null
+        return KnowledgeCard(
+            title = title,
+            url = url,
+            brand = item.optString("brand").orEmpty(),
+            brandName = item.optString("brand_name").orEmpty(),
+            source = item.optString("source").orEmpty(),
+            snippet = item.optString("snippet").orEmpty(),
+            snippetShort = short,
+            snippetFull = item.optString("snippet_full").orEmpty().ifBlank { short },
+            hasMore = item.optBoolean("has_more", false),
+            relevance = item.optDouble("relevance", Double.NaN).takeIf { !it.isNaN() },
+        )
+    }
+
+    private fun JSONArray?.toKnowledgeCards(): List<KnowledgeCard> {
+        if (this == null) return emptyList()
+        val cards = mutableListOf<KnowledgeCard>()
+        for (index in 0 until length()) {
+            optJSONObject(index)?.let(::parseKnowledgeCard)?.let(cards::add)
+        }
+        return cards
     }
 
     private fun encode(value: String): String = java.net.URLEncoder.encode(value, Charsets.UTF_8.name())

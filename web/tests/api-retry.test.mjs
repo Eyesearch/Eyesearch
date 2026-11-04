@@ -67,6 +67,37 @@ function check(name, condition, detail) {
   results.push({ name, ok: Boolean(condition), detail });
 }
 
+// 0. The panel survives the mapping.
+{
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      query: "phonepe",
+      results: [{ url: "https://www.phonepe.com/" }],
+      primary_card: { title: "PhonePe", url: "https://en.wikipedia.org/wiki/PhonePe" },
+      knowledge_cards: [{ title: "PhonePe", url: "https://a.in/x" }],
+      blend: { intent: "navigational", organic_count: 1, knowledge_count: 1, took_ms: 42 },
+    }),
+  });
+  const value = await scenario(`
+export async function __probe() { return await searchWeb("phonepe"); }
+`);
+  check("the hero card survives", value.primary_card && value.primary_card.title === "PhonePe", JSON.stringify(value.primary_card));
+  check("the chips survive", Array.isArray(value.knowledge_cards) && value.knowledge_cards.length === 1, JSON.stringify(value.knowledge_cards));
+  check("the blend metadata survives", value.blend && value.blend.intent === "navigational", JSON.stringify(value.blend));
+}
+
+// 0b. A response without a panel is still valid.
+{
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ query: "q", results: [] }) });
+  const value = await scenario(`
+export async function __probe() { return await searchWeb("q"); }
+`);
+  check("no hero is null, not undefined", value.primary_card === null, String(value.primary_card));
+  check("no chips is an empty list", Array.isArray(value.knowledge_cards) && value.knowledge_cards.length === 0, JSON.stringify(value.knowledge_cards));
+}
+
 // 1. The window is fifteen seconds.
 await scenario(`
 export async function __probe() {

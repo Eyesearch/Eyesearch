@@ -144,6 +144,51 @@ export function equaliseCardHeights(container) {
  * Presenting it as an ordinary result would make it look like a page we
  * crawled and verified.
  */
+/**
+ * The one knowledge card worth showing for this query.
+ *
+ * The backend ranks cards, and its ranking is about relevance, not identity: a
+ * search for "karnataka" came back with "Architecture of Karnataka" as the hero
+ * because that page mentions the word most densely. The reader asked what
+ * Karnataka is, not what its architecture is.
+ *
+ * So an exact title match wins over the server's choice. Failing that the
+ * server's choice stands, because it had the corpus and we do not.
+ */
+export function pickKnowledgeCard(primary, cards, query) {
+  const wanted = String(query || "").trim().toLowerCase();
+  const pool = [primary, ...(Array.isArray(cards) ? cards : [])].filter(
+    (card) => card && typeof card === "object" && (card.title || card.snippet || card.snippet_short)
+  );
+  if (pool.length === 0) return null;
+  if (!wanted) return primary || pool[0];
+
+  const exact = pool.find(
+    (card) => String(card.title || "").trim().toLowerCase() === wanted
+  );
+  if (exact) return exact;
+
+  if (primary) return primary;
+
+  return [...pool].sort(
+    (a, b) => Number(b.relevance || 0) - Number(a.relevance || 0)
+  )[0];
+}
+
+/** Below this the whole snippet fits and no toggle is shown. */
+const SNIPPET_EXPAND_ABOVE = 220;
+
+/** What the collapsed state shows. Cut at a word, never mid-word. */
+const SNIPPET_EXCERPT = 200;
+
+function excerptOf(text) {
+  if (text.length <= SNIPPET_EXPAND_ABOVE) return text;
+  const window = text.slice(0, SNIPPET_EXCERPT);
+  const boundary = window.lastIndexOf(" ");
+  const cut = boundary > 0 ? window.slice(0, boundary) : window;
+  return `${cut.replace(/[\s,;:.\-—]+$/, "")}…`;
+}
+
 export function createKnowledgeHero(card, options = {}) {
   if (!card || (!card.title && !card.snippet_short && !card.snippet)) return null;
 
@@ -167,23 +212,32 @@ export function createKnowledgeHero(card, options = {}) {
 
   const body = document.createElement("p");
   body.className = "knowledge-hero-snippet";
-  // The short field is what shows; `has_more` decides whether a toggle exists.
-  const shortText = card.snippet_short || card.snippet || "";
-  const fullText = card.snippet_full || shortText;
-  body.textContent = shortText;
+  body.id = `knowledge-snippet-${Math.random().toString(36).slice(2, 9)}`;
+
+  // The full text, not the preview. The preview is a display concern, and
+  // letting the server decide where to stop is how a sentence ended at
+  // "traced to its southern Neolithic and".
+  const fullText = String(card.snippet_full || card.snippet_short || card.snippet || "").trim();
+  const collapsed = excerptOf(fullText);
+  body.textContent = collapsed;
   section.appendChild(body);
 
-  if (card.has_more && fullText.length > shortText.length) {
+  if (collapsed !== fullText) {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "knowledge-hero-more";
     toggle.textContent = options.moreLabel || "More";
     toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-controls", body.id);
+    // Self-contained: the listener closes over this card's own nodes, so
+    // re-rendering the panel replaces the button rather than stacking handlers.
     toggle.addEventListener("click", () => {
       const expanded = toggle.getAttribute("aria-expanded") === "true";
       toggle.setAttribute("aria-expanded", expanded ? "false" : "true");
-      body.textContent = expanded ? shortText : fullText;
-      toggle.textContent = expanded ? (options.moreLabel || "More") : (options.lessLabel || "Less");
+      body.textContent = expanded ? collapsed : fullText;
+      toggle.textContent = expanded
+        ? options.moreLabel || "More"
+        : options.lessLabel || "Show less";
     });
     section.appendChild(toggle);
   }
@@ -197,43 +251,6 @@ export function createKnowledgeHero(card, options = {}) {
     link.textContent = hostOf(card.url) || card.url;
     section.appendChild(link);
   }
-
-  return section;
-}
-
-/**
- * The secondary cards, as a row of chips.
- *
- * Small on purpose: they are a hint that more is available, not a second set of
- * results competing with the list below.
- */
-export function createKnowledgeChips(cards, options = {}) {
-  const usable = (cards || []).filter((card) => card && card.url && (card.title || card.snippet_short));
-  if (usable.length === 0) return null;
-
-  const section = document.createElement("section");
-  section.className = "knowledge-card-chips";
-  section.setAttribute("aria-label", options.label || "Related knowledge cards");
-
-  usable.forEach((card) => {
-    const chip = document.createElement("a");
-    chip.className = "knowledge-card-chip";
-    chip.href = card.url;
-    chip.rel = "noopener noreferrer";
-    chip.target = "_blank";
-
-    const label = document.createElement("span");
-    label.className = "knowledge-card-chip-title";
-    label.textContent = card.title || hostOf(card.url);
-    chip.appendChild(label);
-
-    const source = document.createElement("span");
-    source.className = "knowledge-card-chip-source";
-    source.textContent = card.brand || card.brand_name || card.source || hostOf(card.url);
-    chip.appendChild(source);
-
-    section.appendChild(chip);
-  });
 
   return section;
 }

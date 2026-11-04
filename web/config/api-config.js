@@ -17,7 +17,17 @@
  * Set window.EYESEARCH_API_BASE before this module loads to point a build at a
  * different gateway (a staging API, or a local stub).
  */
-const DEFAULT_BASE = "https://eyesearch.duckdns.org";
+//: The live gateway, reached through a Cloudflare Tunnel rather than by
+//: dialling the VM's address. The tunnel is https:// and terminates at
+//: Cloudflare, so the page stays on one protocol and the browser does not block
+//: the request as mixed content.
+//:
+//: This is a quick tunnel (`trycloudflare.com`), whose hostname is issued per
+//: process: it changes when the tunnel restarts, and the old name stops
+//: resolving. If search suddenly reports an unreachable gateway while the VM is
+//: healthy, compare this string with the URL the tunnel printed on boot. A named
+//: tunnel would not have that property.
+const DEFAULT_BASE = "https://luggage-thru-liberty-ram.trycloudflare.com";
 const LOCAL_DEV_BASE = "http://127.0.0.1:8000";
 
 /**

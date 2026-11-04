@@ -51,7 +51,7 @@ check("activate claims clients", /self\.clients\.claim\(\)/.test(sw));
 check("api-config has no Render host", !config.includes("onrender"));
 check(
   "api-config defaults to the tunnel gateway",
-  /DEFAULT_BASE = "https:\/\/possess-sense-airfare-athens\.trycloudflare\.com"/.test(config),
+  /DEFAULT_BASE = "https:\/\/loans-supervisor-casual-wayne\.trycloudflare\.com"/.test(config),
 );
 
 // /v1 must never be answered from cache: search results are live.

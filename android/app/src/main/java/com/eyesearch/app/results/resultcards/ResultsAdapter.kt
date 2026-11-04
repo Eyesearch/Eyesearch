@@ -11,7 +11,11 @@ import com.eyesearch.app.databinding.ItemSearchResultBinding
 
 /** What the list holds: an external hero card, or an indexed result. */
 sealed interface ResultsRow {
-    data class Hero(val card: KnowledgeCard) : ResultsRow
+    data class Hero(
+        val card: KnowledgeCard,
+        /** The secondary cards shown as pills under the hero. */
+        val chips: List<KnowledgeCard> = emptyList(),
+    ) : ResultsRow
     data class Result(val item: SearchResultItem) : ResultsRow
 }
 
@@ -48,7 +52,7 @@ class ResultsAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val row = getItem(position)) {
-            is ResultsRow.Hero -> (holder as HeroCardViewHolder).bind(row.card)
+            is ResultsRow.Hero -> (holder as HeroCardViewHolder).bind(row.card, row.chips)
             is ResultsRow.Result -> (holder as ResultCardViewHolder).bind(row.item, terms(), onClick)
         }
     }

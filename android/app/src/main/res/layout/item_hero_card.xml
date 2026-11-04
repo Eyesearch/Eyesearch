@@ -79,6 +79,28 @@
             android:visibility="gone"
             tools:visibility="visible" />
 
+        <!-- Secondary external cards, as a scrolling row of pills.
+
+             A plain LinearLayout rather than a Material ChipGroup: this app's
+             theme is AppCompat, and a Material3 chip style does not resolve
+             under it — the layout would fail at inflate time rather than at
+             build time, which is the worse of the two. -->
+        <HorizontalScrollView
+            android:id="@+id/hero_chips_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:scrollbars="none"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:id="@+id/hero_chips"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
         <TextView
             android:id="@+id/hero_link"
             android:layout_width="wrap_content"

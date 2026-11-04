@@ -49,7 +49,10 @@ check("activate claims clients", /self\.clients\.claim\(\)/.test(sw));
 
 // The gateway itself must never be the dead host.
 check("api-config has no Render host", !config.includes("onrender"));
-check("api-config defaults to the VM's TLS name", /DEFAULT_BASE = "https:\/\/eyesearch\.duckdns\.org"/.test(config));
+check(
+  "api-config defaults to the tunnel gateway",
+  /DEFAULT_BASE = "https:\/\/luggage-thru-liberty-ram\.trycloudflare\.com"/.test(config),
+);
 
 // /v1 must never be answered from cache: search results are live.
 check("the worker never caches /v1", /\/v1\//.test(sw) && /return;/.test(sw));

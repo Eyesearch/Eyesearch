@@ -75,7 +75,7 @@ const STRINGS = {
   degradedNotice: "Some providers did not respond, so these results may be incomplete.",
   more: "More",
   less: "Less",
-  relatedKnowledge: "Related knowledge",
+  showLess: "Show less",
   errorTitle: "Search failed",
   errorBody: "The search could not be completed.",
   retry: "Try again",

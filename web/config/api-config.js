@@ -24,15 +24,19 @@
 //:
 //: This is a quick tunnel (`trycloudflare.com`), whose hostname is issued per
 //: process: it changes when the tunnel restarts, and the old name stops
-//: resolving. That has already happened once — `luggage-thru-liberty-ram` became
-//: `possess-sense-airfare-athens`. If search suddenly reports an unreachable
-//: gateway while the VM is healthy, compare this string with the URL the tunnel
-//: printed on boot. A named tunnel would not have that property, and is the one
-//: change that would end this class of outage.
+//: resolving. That has now happened twice in three days — `luggage-thru-liberty-
+//: ram`, then `possess-sense-airfare-athens`, now this. Each change is a frontend
+//: commit and a Pages deploy, and between them search is broken with no error
+//: the reader can act on.
+//:
+//: A named tunnel (`cloudflared tunnel create` plus a DNS record on a domain you
+//: control) fixes this permanently. Until then, when search reports an
+//: unreachable gateway while the VM is healthy, compare this string with the URL
+//: the tunnel printed on boot — that is the whole diagnosis.
 //:
 //: This is the single place the gateway is named. Everything else — the search,
 //: the suggestions, the retrieve endpoint — is built from it.
-const DEFAULT_BASE = "https://possess-sense-airfare-athens.trycloudflare.com";
+const DEFAULT_BASE = "https://loans-supervisor-casual-wayne.trycloudflare.com";
 const LOCAL_DEV_BASE = "http://127.0.0.1:8000";
 
 /**

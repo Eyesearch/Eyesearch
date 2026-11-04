@@ -94,8 +94,19 @@ class ResultsFragment : Fragment() {
      */
     private fun rowsOf(payload: SearchResponse?): List<ResultsRow> {
         val rows = mutableListOf<ResultsRow>()
-        payload?.primaryCard?.let { rows += ResultsRow.Hero(it) }
-        payload?.results.orEmpty().forEach { rows += ResultsRow.Result(it) }
+        if (payload == null) return rows
+
+        // A local val rather than reaching through `payload` inside the lambda:
+        // `payload?.primaryCard?.let { }` smart-casts the card, not the payload,
+        // so `payload.knowledgeCards` there would not compile.
+        val hero = payload.primaryCard
+        if (hero != null) {
+            // The chips belong to the hero row, not to the list: they are a
+            // footnote to the answer, and a reader who has no answer has no
+            // use for them either.
+            rows += ResultsRow.Hero(hero, payload.knowledgeCards)
+        }
+        payload.results.forEach { rows += ResultsRow.Result(it) }
         return rows
     }
 

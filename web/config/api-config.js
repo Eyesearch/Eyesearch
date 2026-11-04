@@ -24,10 +24,15 @@
 //:
 //: This is a quick tunnel (`trycloudflare.com`), whose hostname is issued per
 //: process: it changes when the tunnel restarts, and the old name stops
-//: resolving. If search suddenly reports an unreachable gateway while the VM is
-//: healthy, compare this string with the URL the tunnel printed on boot. A named
-//: tunnel would not have that property.
-const DEFAULT_BASE = "https://luggage-thru-liberty-ram.trycloudflare.com";
+//: resolving. That has already happened once — `luggage-thru-liberty-ram` became
+//: `possess-sense-airfare-athens`. If search suddenly reports an unreachable
+//: gateway while the VM is healthy, compare this string with the URL the tunnel
+//: printed on boot. A named tunnel would not have that property, and is the one
+//: change that would end this class of outage.
+//:
+//: This is the single place the gateway is named. Everything else — the search,
+//: the suggestions, the retrieve endpoint — is built from it.
+const DEFAULT_BASE = "https://possess-sense-airfare-athens.trycloudflare.com";
 const LOCAL_DEV_BASE = "http://127.0.0.1:8000";
 
 /**
@@ -128,11 +133,15 @@ export function errorTextFor(code) {
   return ERROR_TEXT[code] || "The search could not be completed.";
 }
 
-export function buildSearchUrl(query, limit = API_CONFIG.defaultLimit) {
+export function buildSearchUrl(query, limit = API_CONFIG.defaultLimit, page = 1) {
   const params = new URLSearchParams({
     q: query,
     limit: String(Math.min(Math.max(1, limit), API_CONFIG.maxLimit)),
   });
+  // Page 1 is the default the gateway already assumes, so it is omitted rather
+  // than sent: one fewer parameter to keep in step with the backend.
+  const pageNumber = Math.max(1, Math.trunc(Number(page) || 1));
+  if (pageNumber > 1) params.set("page", String(pageNumber));
   return `${API_CONFIG.baseUrl}${API_CONFIG.searchPath}?${params.toString()}`;
 }
 
@@ -301,10 +310,21 @@ export async function fetchSuggestions(query, options = {}) {
  *   total_estimate?: number}>}
  */
 export async function searchWeb(query, options = {}) {
-  const payload = await request(buildSearchUrl(query, options.limit), { method: "GET", signal: options.signal });
+  const payload = await request(buildSearchUrl(query, options.limit, options.page), {
+    method: "GET",
+    signal: options.signal,
+    timeoutMs: options.timeoutMs,
+  });
   return {
     query: typeof payload.query === "string" ? payload.query : query,
     results: Array.isArray(payload.results) ? payload.results : [],
+    // The knowledge panel. These were being dropped here, so the renderer that
+    // draws the hero and the chips never received them — the panel was built,
+    // tested against its own renderer, and never reached a reader.
+    knowledge_cards: Array.isArray(payload.knowledge_cards) ? payload.knowledge_cards : [],
+    primary_card:
+      payload.primary_card && typeof payload.primary_card === "object" ? payload.primary_card : null,
+    blend: payload.blend && typeof payload.blend === "object" ? payload.blend : null,
     took_ms: typeof payload.took_ms === "number" ? payload.took_ms : undefined,
     degraded: payload.degraded === true,
     cache_hit: payload.cache_hit === true,

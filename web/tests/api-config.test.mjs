@@ -54,7 +54,7 @@ const pages = probe("https://eyesearch.github.io");
 check(
   "the https site uses the tunnel gateway",
   pages.base,
-  "https://luggage-thru-liberty-ram.trycloudflare.com",
+  "https://possess-sense-airfare-athens.trycloudflare.com",
 );
 check("search path is /v1/search with q and limit", pages.search.includes("/v1/search?q=karnataka&limit=10"), true);
 check("suggest path is /v1/suggest with q", pages.suggest.includes("/v1/suggest?q=kar"), true);

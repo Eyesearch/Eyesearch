@@ -51,7 +51,11 @@ function check(label, actual, expected) {
 
 // The hosted site is https, so it must use the https gateway — never the IP.
 const pages = probe("https://eyesearch.github.io");
-check("the https site uses the https gateway", pages.base, "https://eyesearch.duckdns.org");
+check(
+  "the https site uses the tunnel gateway",
+  pages.base,
+  "https://luggage-thru-liberty-ram.trycloudflare.com",
+);
 check("search path is /v1/search with q and limit", pages.search.includes("/v1/search?q=karnataka&limit=10"), true);
 check("suggest path is /v1/suggest with q", pages.suggest.includes("/v1/suggest?q=kar"), true);
 check("the https site never calls the plain-http IP", pages.search.startsWith("http://"), false);

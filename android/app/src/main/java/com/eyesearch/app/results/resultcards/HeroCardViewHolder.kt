@@ -1,10 +1,11 @@
 package com.eyesearch.app.results.resultcards
 
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.method.LinkMovementMethod
-import android.text.style.URLSpan
+import android.text.TextUtils
 import android.view.View
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.RecyclerView
 import com.eyesearch.app.R
 import com.eyesearch.app.core.api.KnowledgeCard
 import com.eyesearch.app.databinding.ItemHeroCardBinding
@@ -19,11 +20,11 @@ import com.eyesearch.app.databinding.ItemHeroCardBinding
 class HeroCardViewHolder(
     private val binding: ItemHeroCardBinding,
     private val onOpen: (String) -> Unit,
-) : androidx.recyclerview.widget.RecyclerView.ViewHolder(binding.root) {
+) : RecyclerView.ViewHolder(binding.root) {
 
     private var expanded = false
 
-    fun bind(card: KnowledgeCard) {
+    fun bind(card: KnowledgeCard, chips: List<KnowledgeCard> = emptyList()) {
         binding.heroTitle.text = card.title.ifBlank { card.label.ifBlank { card.url } }
 
         val badge = card.label
@@ -45,6 +46,51 @@ class HeroCardViewHolder(
         binding.heroLink.setOnClickListener { onOpen(card.url) }
 
         binding.root.contentDescription = card.title.ifBlank { card.label }
+
+        bindChips(chips)
+    }
+
+    /**
+     * The secondary cards, as pills under the hero.
+     *
+     * Plain TextViews in a scrolling row rather than a nested RecyclerView or a
+     * Material ChipGroup. A scrolling list inside a scrolling list makes both
+     * feel broken; and this app's theme is AppCompat, so a Material3 chip style
+     * would fail at inflate time — the worse of the two failure modes.
+     */
+    private fun bindChips(chips: List<KnowledgeCard>) {
+        binding.heroChips.removeAllViews()
+        val usable = chips.filter {
+            it.url.isNotBlank() && (it.title.isNotBlank() || it.label.isNotBlank())
+        }
+        binding.heroChipsScroll.visibility = if (usable.isEmpty()) View.GONE else View.VISIBLE
+        if (usable.isEmpty()) return
+
+        val context = binding.root.context
+        val padding = (context.resources.displayMetrics.density * 12).toInt()
+        val gap = (context.resources.displayMetrics.density * 8).toInt()
+
+        usable.forEachIndexed { index, chip ->
+            val view = TextView(context).apply {
+                text = chip.title.ifBlank { chip.label }
+                textSize = 13f
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                setPadding(padding, padding / 2, padding, padding / 2)
+                background = ContextCompat.getDrawable(context, R.drawable.knowledge_chip_background)
+                isClickable = true
+                isFocusable = true
+                contentDescription = chip.label.ifBlank { chip.source }
+                setOnClickListener { onOpen(chip.url) }
+                if (index > 0) {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ).apply { marginStart = gap }
+                }
+            }
+            binding.heroChips.addView(view)
+        }
     }
 
     private fun toggle(card: KnowledgeCard) {

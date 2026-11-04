@@ -1,9 +1,9 @@
 /**
- * Knowledge panel rendering.
+ * The knowledge panel: one card, the right card, and a working toggle.
  *
  * Renders the real `web-card.js` in headless Chromium against the real
- * stylesheets and asserts the DOM, the same way the card tests do — a jsdom
- * shim would pass on markup that never lays out.
+ * stylesheets and asserts the DOM — a jsdom shim would pass on markup that never
+ * lays out.
  *
  *   node web/tests/knowledge-panel.test.mjs
  */
@@ -17,29 +17,26 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
 const CARD_JS = readFileSync(join(root, "web/results/result-cards/web-card.js"), "utf8")
-  // Every export is stripped in one pass. Naming them individually meant a
-  // new function in the module broke every test that inlines it.
-  .replace(/^export /gm, "")
-  .replace("export function createKnowledgeChips", "function createKnowledgeChips");
+  // Every export stripped in one pass: naming them individually meant a new
+  // function in the module broke every test that inlines it.
+  .replace(/^export /gm, "");
 const BASE_CSS = readFileSync(join(root, "web/base.css"), "utf8");
 const CARD_CSS = readFileSync(join(root, "web/results/result-cards/card-renderer.css"), "utf8");
+
+const LONG =
+  "Karnataka is a state in the south western region of India. It was formed on 1 November 1956, with the passing of the States Reorganisation Act, and it was originally known as the State of Mysore. It was renamed Karnataka in 1973.";
+
+const SHORT = "Karnataka is a state in south western India.";
 
 const HERO = {
   title: "Karnataka",
   snippet_short: "Karnataka is a state in south western India.",
-  snippet_full:
-    "Karnataka is a state in south western India. It was formed on 1 November 1956, with Bengaluru as its capital.",
-  has_more: true,
+  snippet_full: LONG,
   url: "https://en.wikipedia.org/wiki/Karnataka",
   brand: "Wikipedia",
   source: "wikipedia",
   relevance: 0.85,
 };
-
-const CARDS = [
-  { title: "KSRTC", url: "https://ksrtc.in/", brand: "KSRTC", source: "searxng" },
-  { title: "Bengaluru", url: "https://en.wikipedia.org/wiki/Bengaluru", brand: "Wikipedia" },
-];
 
 function run(cases) {
   const dir = mkdtempSync(join(tmpdir(), "kp-"));
@@ -53,41 +50,50 @@ const out = [];
 for (const c of CASES) {
   const host = document.getElementById("host");
   host.textContent = "";
-  let node = null;
+  const result = { name: c.name };
   try {
-    node = c.kind === "hero" ? createKnowledgeHero(c.card, c.options || {})
-                             : createKnowledgeChips(c.cards, c.options || {});
-  } catch (e) {
-    out.push({ name: c.name, error: String(e) });
-    continue;
-  }
-  if (node) host.appendChild(node);
-  const el = host.firstElementChild;
-  const result = { name: c.name, present: !!el };
-  if (el) {
-    result.className = el.className;
-    result.text = el.textContent;
-    result.tag = el.tagName;
-    const title = el.querySelector(".knowledge-hero-title, .knowledge-card-chip-title");
-    result.title = title ? title.textContent : null;
-    const badge = el.querySelector(".knowledge-hero-badge");
-    result.badge = badge ? badge.textContent : null;
-    const link = el.querySelector(".knowledge-hero-link");
-    result.link = link ? link.getAttribute("href") : null;
-    result.rel = link ? link.getAttribute("rel") : null;
-    const more = el.querySelector(".knowledge-hero-more");
-    result.hasMore = !!more;
-    if (more) {
-      more.click();
-      result.expandedText = el.querySelector(".knowledge-hero-snippet").textContent;
-      result.expandedAria = more.getAttribute("aria-expanded");
-      more.click();
-      result.collapsedAgain = el.querySelector(".knowledge-hero-snippet").textContent;
+    if (c.kind === "pick") {
+      const picked = pickKnowledgeCard(c.primary, c.cards, c.query);
+      result.picked = picked ? picked.title : null;
+      out.push(result);
+      continue;
     }
-    result.chips = el.querySelectorAll(".knowledge-card-chip").length;
-    const rect = el.getBoundingClientRect();
-    result.width = Math.round(rect.width);
-    result.visible = rect.height > 0;
+    const node = createKnowledgeHero(c.card, c.options || {});
+    if (node) host.appendChild(node);
+    const el = host.firstElementChild;
+    result.present = !!el;
+    if (el) {
+      result.className = el.className;
+      result.chips = el.querySelectorAll(".knowledge-card-chip").length;
+      result.carousels = document.querySelectorAll(".knowledge-card-chips").length;
+      const title = el.querySelector(".knowledge-hero-title");
+      result.title = title ? title.textContent : null;
+      result.titleTag = title ? title.tagName : null;
+      const badge = el.querySelector(".knowledge-hero-badge");
+      result.badge = badge ? badge.textContent : null;
+      const body = el.querySelector(".knowledge-hero-snippet");
+      result.text = body ? body.textContent : null;
+      const more = el.querySelector(".knowledge-hero-more");
+      result.hasToggle = !!more;
+      if (more) {
+        result.label = more.textContent;
+        result.controls = more.getAttribute("aria-controls") === body.id;
+        more.click();
+        result.expanded = body.textContent;
+        result.expandedLabel = more.textContent;
+        result.aria = more.getAttribute("aria-expanded");
+        more.click();
+        result.collapsed = body.textContent;
+        result.collapsedLabel = more.textContent;
+      }
+      const link = el.querySelector(".knowledge-hero-link");
+      result.link = link ? link.getAttribute("href") : null;
+      const rect = el.getBoundingClientRect();
+      result.visible = rect.height > 0;
+      result.width = Math.round(rect.width);
+    }
+  } catch (e) {
+    result.error = String(e);
   }
   out.push(result);
 }
@@ -112,13 +118,19 @@ document.title = JSON.stringify(out);
 }
 
 const cases = [
-  { name: "hero with more", kind: "hero", card: HERO },
-  { name: "hero without more", kind: "hero", card: { ...HERO, has_more: false } },
-  { name: "hero with no title", kind: "hero", card: { ...HERO, title: "" } },
-  { name: "empty hero", kind: "hero", card: null },
-  { name: "chips", kind: "chips", cards: CARDS },
-  { name: "no chips", kind: "chips", cards: [] },
-  { name: "chips skip unusable", kind: "chips", cards: [{ title: "no url" }, CARDS[0]] },
+  { name: "long card", kind: "hero", card: HERO, options: { lessLabel: "Show less" } },
+  { name: "short card", kind: "hero", card: { ...HERO, snippet_full: SHORT, snippet_short: SHORT } },
+  { name: "no snippet", kind: "hero", card: null },
+  { name: "exact title wins", kind: "pick", query: "karnataka",
+    primary: { title: "Architecture of Karnataka", relevance: 0.9 },
+    cards: [{ title: "Karnataka", relevance: 0.6 }, { title: "History of Karnataka", relevance: 0.7 }] },
+  { name: "case insensitive", kind: "pick", query: "KARNATAKA",
+    primary: { title: "Architecture of Karnataka" }, cards: [{ title: "karnataka" }] },
+  { name: "no exact falls back to primary", kind: "pick", query: "karnataka",
+    primary: { title: "Architecture of Karnataka" }, cards: [{ title: "History of Karnataka" }] },
+  { name: "no primary uses relevance", kind: "pick", query: "karnataka", primary: null,
+    cards: [{ title: "History of Karnataka", relevance: 0.2 }, { title: "Economy of Karnataka", relevance: 0.8 }] },
+  { name: "empty", kind: "pick", query: "karnataka", primary: null, cards: [] },
 ];
 
 const results = run(cases);
@@ -131,43 +143,41 @@ function check(name, condition, detail) {
 
 const by = Object.fromEntries(results.map((r) => [r.name, r]));
 
-check("hero renders", by["hero with more"].present, "not rendered");
-check(
-  "hero carries its class",
-  by["hero with more"].className === "knowledge-hero-card",
-  by["hero with more"].className
-);
-check("hero shows the title", by["hero with more"].title === "Karnataka", by["hero with more"].title);
-check("hero names the source", by["hero with more"].badge === "Wikipedia", by["hero with more"].badge);
-check(
-  "hero links to the source",
-  by["hero with more"].link === HERO.url,
-  by["hero with more"].link
-);
-check("the link is safe", by["hero with more"].rel === "noopener noreferrer", by["hero with more"].rel);
-check("the toggle exists when has_more", by["hero with more"].hasMore, "no toggle");
-check(
-  "the toggle expands to the full text",
-  by["hero with more"].expandedText === HERO.snippet_full,
-  by["hero with more"].expandedText
-);
-check("the toggle reports its state", by["hero with more"].expandedAria === "true", by["hero with more"].expandedAria);
-check(
-  "the toggle collapses again",
-  by["hero with more"].collapsedAgain === HERO.snippet_short,
-  by["hero with more"].collapsedAgain
-);
-check("the hero is visible", by["hero with more"].visible === true, "zero height");
-check("the hero is full width", by["hero with more"].width > 300, by["hero with more"].width);
+// The card itself
+check("the card renders", by["long card"].present, "not rendered");
+check("it is the hero", by["long card"].className === "knowledge-hero-card", by["long card"].className);
+check("the title is a heading", by["long card"].titleTag === "H2", by["long card"].titleTag);
+check("it names the source", by["long card"].badge === "Wikipedia", by["long card"].badge);
+check("it links out", by["long card"].link === HERO.url, by["long card"].link);
+check("it is visible", by["long card"].visible === true, "zero height");
 
-check("no toggle without has_more", by["hero without more"].hasMore === false, "toggle appeared");
-check("a titleless hero falls back to the host", by["hero with no title"].title === "en.wikipedia.org", by["hero with no title"].title);
-check("an empty hero renders nothing", by["empty hero"].present === false, "rendered anyway");
+// The carousel is gone
+check("no chips are rendered", by["long card"].chips === 0, String(by["long card"].chips));
+check("no carousel container exists", by["long card"].carousels === 0, String(by["long card"].carousels));
 
-check("chips render", by["chips"].chips === 2, String(by["chips"].chips));
-check("chips carry their class", by["chips"].className === "knowledge-card-chips", by["chips"].className);
-check("no chips when the list is empty", by["no chips"].present === false, "rendered anyway");
-check("an unusable chip is skipped", by["chips skip unusable"].chips === 1, String(by["chips skip unusable"].chips));
+// The toggle
+check("a long snippet has a toggle", by["long card"].hasToggle === true, "no toggle");
+check("it starts collapsed", by["long card"].text.length < LONG.length, String(by["long card"].text.length));
+check("it ends at a word, not mid-word", /…$/.test(by["long card"].text), by["long card"].text);
+check("the button says More", by["long card"].label === "More", by["long card"].label);
+check("it points at the snippet", by["long card"].controls === true, "aria-controls missing");
+check("expanding shows the whole text", by["long card"].expanded === LONG, String(by["long card"].expanded.length));
+check("the button says Show less", by["long card"].expandedLabel === "Show less", by["long card"].expandedLabel);
+check("it reports its state", by["long card"].aria === "true", by["long card"].aria);
+check("collapsing restores the excerpt", by["long card"].collapsed === by["long card"].text, by["long card"].collapsed);
+check("the label returns to More", by["long card"].collapsedLabel === "More", by["long card"].collapsedLabel);
+
+// Short text
+check("a short snippet has no toggle", by["short card"].hasToggle === false, "toggle appeared");
+check("a short snippet is shown whole", by["short card"].text === SHORT, by["short card"].text);
+check("an empty card renders nothing", by["no snippet"].present === false, "rendered anyway");
+
+// Picking
+check("an exact title beats the server's pick", by["exact title wins"].picked === "Karnataka", by["exact title wins"].picked);
+check("the match ignores case", by["case insensitive"].picked === "karnataka", by["case insensitive"].picked);
+check("without an exact match the server's pick stands", by["no exact falls back to primary"].picked === "Architecture of Karnataka", by["no exact falls back to primary"].picked);
+check("without a primary the most relevant wins", by["no primary uses relevance"].picked === "Economy of Karnataka", by["no primary uses relevance"].picked);
+check("an empty set picks nothing", by["empty"].picked === null, String(by["empty"].picked));
 
 const total = passed + failures.length;
 if (failures.length) {

@@ -23,7 +23,14 @@ async function scenario(body) {
     file,
     `globalThis.location = { hostname: "eyesearch.github.io", protocol: "https:" };
 globalThis.window = { location: globalThis.location };
-globalThis.navigator = { onLine: true };
+// Node 21+ ships a getter-only \`navigator\`, so plain assignment throws there
+// while working on Node 20. Defining it is valid on both, which matters
+// because CI runs a newer Node than a developer's laptop.
+Object.defineProperty(globalThis, "navigator", {
+  value: { onLine: true },
+  configurable: true,
+  writable: true,
+});
 ${SOURCE}
 ${body}
 `,

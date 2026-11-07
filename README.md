@@ -44,7 +44,7 @@ web/                                   android/ (app/src/main/java/com/eyesearch
 | results / nav-tabs | `tab-switcher.js` | `ResultsTabRow.kt` | ALL vs AI (AI = `/v1/retrieve`, the token-optimised payload) |
 | results / result-cards | `web-card.js` + `card-renderer.css` | `ResultsAdapter.kt`, `ResultCardViewHolder.kt` | 4-sided cards: breadcrumb + favicon, clickable title, highlighted snippet, media |
 | results / meta-info | `latency-badge.js` | `LatencyIndicatorView.kt` | `5 results · found in 0.43s`, degraded and cached badges, provider names |
-| results / client-federation | `aux-fetch.js` | — (web only, for now) | Auxiliary results fetched by the reader's browser, in parallel with the gateway and under a 2.2s deadline |
+| results / client-federation | `aux-fetch.js` | — (web only, for now) | Auxiliary results fetched by the reader's browser — Wikipedia, our Cloudflare worker (DuckDuckGo Lite) and the Instant Answer API — in parallel with the gateway and under a 2.2s deadline |
 
 Two files sit outside the module tree because they are wiring, not features:
 `web/app.js` (composition root, the counterpart of `MainActivity.kt`) and
@@ -73,6 +73,23 @@ theme attributes). Two module-level stylesheets live beside their module:
   gateway's cards use, marked `federated: true`, and drawn by the same renderer,
   so the only visible difference is the `Source: …` attribution line. No
   iframe, no third-party widget, no script from anyone else.
+
+  Three sources are asked in parallel, each answering only for itself:
+
+  | Source | Endpoint | Answers with |
+  | --- | --- | --- |
+  | Wikipedia | OpenSearch, then the REST summary for thin hits | encyclopedia entries |
+  | Auxiliary worker | `eyesearch-aux.indomanagement.workers.dev` — our Cloudflare Worker running DuckDuckGo Lite server-side | ordinary web results |
+  | DuckDuckGo Instant Answer | `api.duckduckgo.com` | one entity abstract |
+
+  The worker is what makes a query for a shop, a scheme or a current event
+  return anything at all; DuckDuckGo has no CORS-enabled web-search endpoint a
+  browser can call, and the gateway cannot call it without its address being
+  rate-limited. Rows are de-duplicated by URL across all three, in that order,
+  so an encyclopedia entry wins over a web result for the same page. The query
+  itself is the only thing sent — `credentials: "omit"`,
+  `referrerPolicy: "no-referrer"` — but it does reach those three hosts from
+  the reader's connection.
 - **Full history screen**: opened from the profile popover, with a back arrow,
   five time-range clears (last 24 hours, last week, last month, last year, all
   time), per-row relative time ("2 hours ago") and a delete button. Entries are

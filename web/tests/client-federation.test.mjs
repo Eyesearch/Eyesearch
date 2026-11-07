@@ -150,8 +150,36 @@ const DDG = {
   AbstractURL: "https://en.wikipedia.org/wiki/Bangalore",
 };
 
+/** The Cloudflare worker's shape, as documented, plus one row that is a repeat
+ *  of a page Wikipedia already returned. */
+const WORKER = {
+  results: [
+    {
+      title: "BBMP — Bruhat Bengaluru Mahanagara Palike",
+      url: "https://bbmp.gov.in/",
+      snippet: "The municipal corporation of Bengaluru.",
+      source: "Web",
+      badge: "Web",
+    },
+    {
+      title: "Bengaluru Metro",
+      url: "https://en.wikipedia.org/wiki/Bengaluru_Metro",
+      snippet: "The metro rail system serving Bengaluru.",
+      source: "Web",
+      badge: "Web",
+    },
+    {
+      title: "Bengaluru",
+      url: "https://en.wikipedia.org/wiki/Bengaluru/",
+      snippet: "The same page the encyclopedia already returned.",
+      source: "Web",
+      badge: "Web",
+    },
+  ],
+};
+
 /** A fetch stub that answers each provider from the payloads above. */
-function stubFetch({ opensearch = OPENSEARCH, summary = SUMMARY, ddg = DDG, fail = null } = {}) {
+function stubFetch({ opensearch = OPENSEARCH, summary = SUMMARY, ddg = DDG, worker = WORKER, fail = null } = {}) {
   const calls = [];
   const impl = async (url, init) => {
     calls.push(url);
@@ -160,6 +188,7 @@ function stubFetch({ opensearch = OPENSEARCH, summary = SUMMARY, ddg = DDG, fail
     if (url.startsWith("https://en.wikipedia.org/w/api.php")) body = opensearch;
     else if (url.startsWith("https://en.wikipedia.org/api/rest_v1/page/summary/")) body = summary;
     else if (url.startsWith("https://api.duckduckgo.com/")) body = ddg;
+    else if (url.startsWith("https://eyesearch-aux.indomanagement.workers.dev/")) body = worker;
     else throw new Error(`unexpected url ${url}`);
     return { ok: true, status: 200, json: async () => body };
   };
@@ -169,7 +198,7 @@ function stubFetch({ opensearch = OPENSEARCH, summary = SUMMARY, ddg = DDG, fail
 const stub = stubFetch();
 const results = await fetchAuxiliaryResults("bengaluru", { fetchImpl: stub.impl });
 
-check("three Wikipedia pages and one web snippet come back", results.length, 4);
+check("three encyclopedia pages, two web results and one entity card come back", results.length, 6);
 check(
   "every auxiliary card is federated and attributed",
   results.every((item) => item.federated === true && item.source && item.source_url),
@@ -180,7 +209,28 @@ check(
   results.filter((item) => item.source === "wikipedia").map((item) => item.badge),
   ["Wikipedia", "Wikipedia", "Wikipedia"],
 );
-check("the web snippet names its provider as the provider spells it", results[3].badge, "DuckDuckGo");
+const bySource = (name) => results.filter((item) => item.source === name);
+check("the encyclopedia answers first", bySource("wikipedia").length, 3);
+check(
+  "the worker's rows keep the badge the worker gave them",
+  bySource("web").map((item) => item.badge),
+  ["Web", "Web"],
+);
+check(
+  "a page the worker repeated from Wikipedia is shown once",
+  results.filter((item) => item.url.replace(/\/$/, "") === "https://en.wikipedia.org/wiki/Bengaluru").length,
+  1,
+);
+check(
+  "the entity card names its provider as the provider spells it",
+  bySource("duckduckgo").map((item) => item.badge),
+  ["DuckDuckGo"],
+);
+check(
+  "the worker is asked with the query encoded",
+  stub.calls.filter((url) => url.startsWith("https://eyesearch-aux.indomanagement.workers.dev/")),
+  ["https://eyesearch-aux.indomanagement.workers.dev/?q=bengaluru"],
+);
 check(
   "an empty opensearch description is filled from the summary",
   results[0].snippet,
@@ -198,7 +248,55 @@ const excluded = await fetchAuxiliaryResults("bengaluru", {
   fetchImpl: stubFetch().impl,
   existingUrls: ["https://en.wikipedia.org/wiki/Bengaluru"],
 });
-check("a page the gateway already returned is not repeated", excluded.length, 3);
+check("a page the gateway already returned is not repeated", excluded.length, 5);
+
+/* ------------------------------ the worker -------------------------------- */
+
+// The worker is the only provider whose answers are ordinary web results, so
+// it carries most of the risk: a shape change or an outage must cost the web
+// cards and nothing else.
+const workerDown = await fetchAuxiliaryResults("bengaluru", {
+  fetchImpl: stubFetch({ fail: (url) => url.startsWith("https://eyesearch-aux.indomanagement.workers.dev/") }).impl,
+});
+check("a dead worker still leaves the encyclopedia cards", workerDown.filter((item) => item.source === "wikipedia").length, 3);
+check("a dead worker contributes nothing itself", workerDown.filter((item) => item.source === "web").length, 0);
+check("a dead worker does not take the entity card with it", workerDown.length, 4);
+
+const workerAsArray = await fetchAuxiliaryResults("bengaluru", {
+  fetchImpl: stubFetch({ worker: WORKER.results }).impl,
+});
+check("a bare array from the worker is accepted too", workerAsArray.filter((item) => item.source === "web").length, 2);
+
+const workerHostile = await fetchAuxiliaryResults("bengaluru", {
+  fetchImpl: stubFetch({
+    worker: {
+      results: [
+        { title: "Run this", url: "javascript:alert(1)", snippet: "x", source: "Web", badge: "Web" },
+        { url: "https://no-title.example/", snippet: "x", source: "Web", badge: "Web" },
+        { title: "  Kept  ", url: "https://kept.example/page", snippet: "<b>bold</b> text", source: "Web", badge: "Web" },
+      ],
+    },
+  }).impl,
+});
+check("a javascript: url from the worker is dropped", workerHostile.filter((item) => item.url.startsWith("javascript")).length, 0);
+check("a worker row with no title is dropped", workerHostile.filter((item) => item.url.includes("no-title")).length, 0);
+check(
+  "a surviving worker row is normalised like every other card",
+  workerHostile.filter((item) => item.source === "web").map((item) => [item.title, item.snippet, item.federated]),
+  [["Kept", "bold text", true]],
+);
+
+const manyRows = {
+  results: Array.from({ length: 9 }, (_, index) => ({
+    title: `Result ${index}`,
+    url: `https://example${index}.com/page`,
+    snippet: "text",
+    source: "Web",
+    badge: "Web",
+  })),
+};
+const capped = await fetchAuxiliaryResults("bengaluru", { fetchImpl: stubFetch({ worker: manyRows }).impl });
+check("the worker may fill at most five cards", capped.filter((item) => item.source === "web").length, 5);
 
 /* ------------------------------ fail-silent -------------------------------- */
 

@@ -39,9 +39,24 @@ const WIKIPEDIA_LIMIT = 3;
  *  the cards and keeps the second hop inside the deadline. */
 const SUMMARY_LIMIT = 2;
 
+/** How many web snippets a search may contribute. Five fills the fold; more
+ *  than that and the auxiliary cards outnumber the results they sit under. */
+const WORKER_LIMIT = 5;
+
 const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
 const WIKIPEDIA_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/";
 const DUCKDUCKGO_API = "https://api.duckduckgo.com/";
+
+/**
+ * Our own Cloudflare Worker, which runs DuckDuckGo Lite server-side.
+ *
+ * It exists because DuckDuckGo has no CORS-enabled web-search endpoint: a
+ * browser cannot ask it directly, and the gateway cannot ask it without the
+ * datacenter address being rate-limited. The worker is the small piece in the
+ * middle that can, and it answers `{ results: [{ title, url, snippet, source,
+ * badge }] }`.
+ */
+const AUX_WORKER = "https://eyesearch-aux.indomanagement.workers.dev/";
 
 /* ------------------------------- primitives ------------------------------- */
 
@@ -253,6 +268,38 @@ async function wikipediaProvider(query, ctx) {
 }
 
 /**
+ * Web snippets from our Cloudflare Worker (DuckDuckGo Lite, server-side).
+ *
+ * The one provider here whose answers are ordinary web results rather than an
+ * encyclopedia entry, so it is what makes a query for a shop, a scheme or a
+ * current event produce anything at all.
+ *
+ * The worker's own `source` and `badge` are kept when it sends them: it is the
+ * publisher of these rows, and a card should say what it was told rather than
+ * what this file guesses. `web` is the fallback so attribution is never empty.
+ */
+async function workerProvider(query, ctx) {
+  const url = `${AUX_WORKER}?q=${encodeURIComponent(query)}`;
+  const payload = await ctx.json(url);
+
+  // `{ results: [...] }` is the contract. A bare array is accepted as well, so
+  // a small change on the worker side cannot silently empty this provider.
+  const rows = Array.isArray(payload)
+    ? payload
+    : payload && Array.isArray(payload.results)
+      ? payload.results
+      : [];
+
+  return rows.slice(0, WORKER_LIMIT).map((row) => ({
+    title: stripMarkup(row && row.title),
+    url: httpUrl(row && row.url),
+    snippet: stripMarkup(row && row.snippet),
+    badge: stripMarkup(row && row.badge) || "Web",
+    source: stripMarkup(row && row.source) || "web",
+  }));
+}
+
+/**
  * DuckDuckGo Instant Answer: the keyless, CORS-enabled public snippet endpoint.
  * It answers entity questions rather than searching the web, so it either has a
  * page to point at or it contributes nothing — which is the honest outcome, not
@@ -281,8 +328,14 @@ async function duckduckgoProvider(query, ctx) {
   ];
 }
 
-/** Asked together, in parallel, each answering only for itself. */
-const PROVIDERS = [wikipediaProvider, duckduckgoProvider];
+/**
+ * Asked together, in parallel, each answering only for itself.
+ *
+ * Order is the dedupe tie-break: an encyclopedia entry wins over a web result
+ * for the same URL, and both win over the Instant Answer, which is the same
+ * source as the worker and only adds anything when the worker has no answer.
+ */
+const PROVIDERS = [wikipediaProvider, workerProvider, duckduckgoProvider];
 
 /* ------------------------------- dispatching ------------------------------ */
 

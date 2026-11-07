@@ -7,11 +7,29 @@
  *   - /v1/* is never touched: search results must always be live.
  *   - Cache-first is safe here because every asset is versioned by CACHE_NAME;
  *     bump it and the old cache is dropped on activate.
+ *   - One worker per deployment. Production lives at the origin root and the
+ *     staging preview at /develop/, and the browser gives each its own scope.
  */
 // Bump this whenever a precached file changes. `activate` deletes every cache
 // whose name differs, so the old api-config.js — the one that pointed at the
 // dead Render host — is dropped instead of served forever.
-const CACHE_NAME = "eyesearch-v6";
+const CACHE_VERSION = "eyesearch-v6";
+
+// Cache Storage is per origin, not per scope: without this, production and the
+// staging preview would share one cache, and either one's activate would throw
+// away the other's shell on every deploy. The worker's own scope is the
+// deployment, so it names the cache — `/Eyesearch/` becomes `eyesearch`, and
+// `/Eyesearch/develop/` becomes `eyesearch-develop`.
+const SCOPE_KEY =
+  new URL(self.registration.scope).pathname.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() ||
+  "root";
+
+const CACHE_NAME = `${CACHE_VERSION}-${SCOPE_KEY}`;
+
+// The global cache this worker used before it knew about scopes. It belongs to
+// no deployment, so whichever worker activates next may drop it.
+const LEGACY_CACHE = /^eyesearch-v\d+$/;
+
 const OFFLINE_URL = "./index.html";
 
 const PRECACHE = [
@@ -66,8 +84,16 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
+      // Only this deployment's caches are dropped: its own older versions, and
+      // the pre-scope global one. Deleting every cache that is not ours would
+      // wipe the other deployment's shell every time either of them shipped.
       const names = await caches.keys();
-      await Promise.all(names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)));
+      const mine = (name) => name.endsWith(`-${SCOPE_KEY}`);
+      await Promise.all(
+        names
+          .filter((name) => name !== CACHE_NAME && (mine(name) || LEGACY_CACHE.test(name)))
+          .map((name) => caches.delete(name))
+      );
       await self.clients.claim();
     })()
   );

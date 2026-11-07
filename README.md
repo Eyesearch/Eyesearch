@@ -117,6 +117,37 @@ site root (`web/_headers` carries the security and cache policy). A root
 `index.html` redirects to `./web/` for hosts that serve the repository root
 instead of the app directory.
 
+### Production and staging
+
+GitHub Pages publishes one artifact per deployment, so both deployments are
+assembled together and shipped as one tree:
+
+| Path | Source | Purpose |
+| --- | --- | --- |
+| `/Eyesearch/` | `main` | production |
+| `/Eyesearch/develop/` | `develop` | staging preview, for testing a change live before it reaches `main` |
+
+The workflow runs on a push to either branch and builds both halves the same
+way every time: production comes from `main` and nothing else, staging from
+`develop`. A push to `develop` therefore publishes the preview without the
+branch under test ever being able to write to the production root. The staging
+copy is marked with a `noindex` meta tag and a fixed banner (see
+`.github/scripts/mark-staging.py`), so it cannot be mistaken for production or
+indexed as a duplicate of it.
+
+This works because the client is written with relative paths throughout
+(`./base.css`, `./app.js`, `./sw.js?v=6`): the same files resolve correctly at
+the root and one level down. The service worker gets its own scope from where
+it is served, and names its cache from that scope (`eyesearch-v6-eyesearch` vs
+`eyesearch-v6-eyesearch-develop`), so the two deployments never evict each
+other's cached shell.
+
+Both halves need two repository settings that a workflow cannot set for itself:
+Pages must be set to deploy from GitHub Actions (`Settings → Pages → Source:
+GitHub Actions`), and the `github-pages` environment must allow the `develop`
+branch (`Settings → Environments → github-pages → Deployment branches`), or the
+deploy job is refused before it runs.
+
 ### Installable app (PWA)
 
 `web/manifest.json` declares the standalone app (name, `./index.html` start URL,

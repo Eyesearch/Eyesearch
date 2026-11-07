@@ -1,10 +1,25 @@
 name: Deploy web to GitHub Pages
 
-# Publishes the contents of web/ as the Pages site, so
-# https://eyesearch.github.io/Eyesearch/ serves the search UI directly.
+# Two deployments, one site.
+#
+# GitHub Pages publishes a single artifact per deployment, so the production
+# site and the staging preview are assembled together and shipped as one tree:
+#
+#   https://eyesearch.github.io/Eyesearch/          production, from main
+#   https://eyesearch.github.io/Eyesearch/develop/  staging,    from develop
+#
+# Whichever branch triggered the run, the artifact is built the same way — main
+# at the root, develop under /develop/ — so the two halves can never drift, and
+# a push to develop re-publishes production byte-for-byte from main rather than
+# from the branch under test. Production content comes from main and nowhere
+# else.
+#
+# The web client is written with relative paths throughout (./), which is what
+# lets the same files run at the root and under a subpath: every module, the
+# manifest, and the service worker's scope resolve against where the files sit.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - "web/**"
       - ".github/workflows/pages.yml"
@@ -15,29 +30,106 @@ permissions:
   pages: write
   id-token: write
 
-# Never run two Pages deployments at once; let an in-flight one finish.
+# Never run two Pages deployments at once; let an in-flight one finish. A
+# cancelled deployment can leave the site half-published.
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
+  test:
+    name: Web tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The tests drive real Chromium rather than a jsdom shim, and they call it
+      # as `chromium`. The runner image ships google-chrome under that other
+      # name, so the tests get what they ask for.
+      - name: Make chromium available to the tests
+        run: |
+          if ! command -v chromium >/dev/null 2>&1; then
+            if command -v google-chrome >/dev/null 2>&1; then
+              sudo ln -sf "$(command -v google-chrome)" /usr/local/bin/chromium
+            else
+              echo "::error::neither chromium nor google-chrome is on this runner"
+              exit 1
+            fi
+          fi
+          chromium --version
+
+      - name: Run the web test suite
+        run: |
+          set -euo pipefail
+          for file in web/tests/*.test.mjs; do
+            echo "::group::$file"
+            node "$file"
+            echo "::endgroup::"
+          done
+
   deploy:
     name: Build and deploy web/
+    needs: test
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout
+      - name: Checkout production (main)
         uses: actions/checkout@v4
+        with:
+          ref: main
+          path: prod
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      - name: Checkout staging (develop)
+        id: staging
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: dev
+
+      - name: Assemble the site
+        run: |
+          set -euo pipefail
+
+          # Production is main's web/, at the root. Nothing else may write there.
+          test -f prod/web/index.html
+          rm -rf site
+          mkdir -p site
+          cp -R prod/web/. site/
+
+          if [ -f dev/web/index.html ]; then
+            mkdir -p site/develop
+            cp -R dev/web/. site/develop/
+
+            # Staging must never be mistaken for production: it is the same app
+            # on the same origin, so a reader who lands on it needs to know, and
+            # a crawler needs to leave it alone.
+            python3 .github/scripts/mark-staging.py site/develop
+
+            echo "staging: included from develop"
+          else
+            echo "::warning::develop has no web/index.html; publishing production only"
+          fi
+
+          # Fail before the upload rather than after: an empty or malformed tree
+          # deployed over the live site takes production down.
+          test -f site/index.html
+          test -f site/app.js
+          test -f site/sw.js
+          echo "--- site root ---"
+          ls site
+          if [ -d site/develop ]; then
+            echo "--- staging ---"
+            ls site/develop
+          fi
 
       - name: Upload web/ as the Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deployment

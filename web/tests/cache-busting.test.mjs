@@ -33,7 +33,7 @@ function check(label, ok) {
 
 // One version number, used in three places. If they drift, a browser keeps the
 // old worker or the old module and the fix silently stops working.
-const cacheName = /const CACHE_NAME = "eyesearch-v(\d+)"/.exec(sw)?.[1];
+const cacheName = /const CACHE_VERSION = "eyesearch-v(\d+)"/.exec(sw)?.[1];
 const registered = /register\("\.\/sw\.js\?v=(\d+)"\)/.exec(app)?.[1];
 const scripted = /src="\.\/app\.js\?v=(\d+)"/.exec(index)?.[1];
 
@@ -44,6 +44,18 @@ check("all three versions agree", cacheName === registered && registered === scr
 
 // The worker must actually drop old caches on activate, or bumping does nothing.
 check("activate deletes caches that do not match", /caches\.keys\(\)/.test(sw) && /caches\.delete/.test(sw));
+
+// Production (/Eyesearch/) and the staging preview (/Eyesearch/develop/) share
+// one origin and therefore one Cache Storage. Each deployment names its own
+// cache from its scope, and cleans up only its own lineage — otherwise every
+// deploy of either one evicts the other's shell.
+check("the cache name is qualified by the deployment scope", sw.includes("${CACHE_VERSION}-${SCOPE_KEY}"));
+check("the scope key is read from the worker's own scope", /new URL\(self\.registration\.scope\)/.test(sw));
+check("activate cleans only this deployment's caches", /endsWith\(`-\$\{SCOPE_KEY\}`\)/.test(sw));
+check(
+  "activate does not delete every cache that is not its own",
+  /filter\(\(name\) => name !== CACHE_NAME && \(mine\(name\) \|\| LEGACY_CACHE\.test\(name\)\)\)/.test(sw),
+);
 check("install skips waiting", /self\.skipWaiting\(\)/.test(sw));
 check("activate claims clients", /self\.clients\.claim\(\)/.test(sw));
 

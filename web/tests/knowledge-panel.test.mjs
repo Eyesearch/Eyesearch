@@ -113,6 +113,13 @@ document.title = JSON.stringify(out);
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-background-networking",
+        // Hermetic: a card asks the site for its own favicon, and a real
+        // request would leave the page waiting on someone else's server —
+        // Chrome's virtual clock does not advance while a fetch is pending,
+        // so the test hangs wherever that host is slow. Refuse every
+        // external host instead: the icon fails at once, the letter tile
+        // appears, and the test measures the app rather than the network.
+        "--host-resolver-rules=MAP * ~NOTFOUND",
         "--dump-dom",
         `file://${file}`,
       ],

@@ -34,6 +34,7 @@ import {
   pickKnowledgeCard,
 } from "./results/result-cards/web-card.js";
 import { mountChatPanel } from "./results/ai-chat/chat-panel.js";
+import { fetchAuxiliaryResults, dedupeAuxResults } from "./results/client-federation/aux-fetch.js";
 
 const mount = (name) => document.querySelector(`[data-mount="${name}"]`);
 
@@ -215,12 +216,21 @@ async function runSearch(query, { tab = state.tab } = {}) {
   document.body.dataset.tab = "all";
   chatPanel.clear();
 
+  // Client-side federation: the auxiliary providers are asked from this browser
+  // at the same moment as the gateway, on the reader's own connection — the
+  // gateway's datacenter address is what those providers rate-limit. The promise
+  // is not awaited here on purpose: the gateway's answer renders first and the
+  // auxiliary cards are appended when (if) they arrive. It resolves with [] for
+  // every failure, so there is nothing to catch.
+  const auxiliary = fetchAuxiliaryResults(cleaned, { signal: controller.signal });
+
   try {
     const payload = await searchWeb(cleaned, { signal: controller.signal });
     if (token !== state.token) return;
 
     state.lastPayload = payload;
     renderPayload(payload, cleaned, tab, started);
+    attachAuxiliary(auxiliary, token, payload, cleaned);
   } catch (error) {
     if (token !== state.token) return;
     if (error && (error.name === "AbortError" || error.name === "TimeoutError")) {
@@ -283,6 +293,62 @@ function renderPayload(payload, query, tab) {
     if (state.resizeTimer) clearTimeout(state.resizeTimer);
     state.resizeTimer = setTimeout(() => equaliseCardHeights(els.cards), 120);
   });
+}
+
+/* --------------------------- client-side federation ------------------------ */
+
+/**
+ * Append the auxiliary cards once they land.
+ *
+ * The gateway's results are already on screen by the time this runs, and that
+ * is the whole point of the split: this call can take 2 seconds, time out, or
+ * fail entirely and the reader never sees anything but their own results.
+ *
+ * Everything is guarded, because a slower search can be replaced by a faster
+ * one: a stale token means the reader has moved on and these cards belong to a
+ * query nobody is looking at any more.
+ */
+function attachAuxiliary(promise, token, payload, query) {
+  promise
+    .then((items) => {
+      // Only the token is checked, not the view: the history screen hides the
+      // card list without clearing it, so cards appended while the reader is
+      // there are still the right cards when they come back. Going home clears
+      // the list and bumps the token, which is the case that matters.
+      if (token !== state.token) return;
+      const primaryUrls = (payload.results || []).map((result) => result && result.url);
+      const cards = dedupeAuxResults(items, primaryUrls);
+      if (cards.length === 0) return;
+      appendAuxiliaryCards(cards, query);
+    })
+    .catch(() => {
+      /* fail silently: an auxiliary card is a bonus, never a dependency */
+    });
+}
+
+/**
+ * Draw auxiliary cards with the same renderer, and the same card, as everything
+ * else. They carry `federated: true`, so the renderer adds the attribution line
+ * that says whose words these are — the only difference a reader should see.
+ */
+function appendAuxiliaryCards(cards, query) {
+  if (!els.cards) return;
+
+  // The gateway found nothing and the empty state is showing. Real cards below
+  // "no results" would read as a bug, so the empty state gives way.
+  const empty = els.cards.querySelector(".empty-state");
+  if (empty) empty.remove();
+
+  const fragment = document.createDocumentFragment();
+  cards.forEach((card) => {
+    fragment.appendChild(createWebCard(card, { terms: terms(query), compact: state.tab === "ai" }));
+  });
+  els.cards.appendChild(fragment);
+
+  // The new cards are part of the column now, so the shared height is measured
+  // again — a federated card is taller, and a ragged list is what that floor is
+  // there to prevent.
+  equaliseCardHeights(els.cards);
 }
 
 /** Reset to the home hero: clear results, the URL and the in-flight request. */
@@ -430,7 +496,7 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
     // The query string is the point: a different URL is a different worker, so the
     // browser fetches this one instead of keeping the cached script that pinned
     // the old gateway. Bump it with CACHE_NAME in sw.js.
-    navigator.serviceWorker.register("./sw.js?v=5").catch((error) => {
+    navigator.serviceWorker.register("./sw.js?v=6").catch((error) => {
       console.warn("eyesearch: service worker registration failed", error);
     });
   });

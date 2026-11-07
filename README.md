@@ -44,6 +44,7 @@ web/                                   android/ (app/src/main/java/com/eyesearch
 | results / nav-tabs | `tab-switcher.js` | `ResultsTabRow.kt` | ALL vs AI (AI = `/v1/retrieve`, the token-optimised payload) |
 | results / result-cards | `web-card.js` + `card-renderer.css` | `ResultsAdapter.kt`, `ResultCardViewHolder.kt` | 4-sided cards: breadcrumb + favicon, clickable title, highlighted snippet, media |
 | results / meta-info | `latency-badge.js` | `LatencyIndicatorView.kt` | `5 results · found in 0.43s`, degraded and cached badges, provider names |
+| results / client-federation | `aux-fetch.js` | — (web only, for now) | Auxiliary results fetched by the reader's browser, in parallel with the gateway and under a 2.2s deadline |
 
 Two files sit outside the module tree because they are wiring, not features:
 `web/app.js` (composition root, the counterpart of `MainActivity.kt`) and
@@ -60,6 +61,18 @@ theme attributes). Two module-level stylesheets live beside their module:
 - **4-sided result cards**: each result is its own box — `border: 1px solid`,
   `border-radius: 12px`, `padding: 16px`, `margin-bottom: 16px`, its own
   background — with favicon + domain breadcrumb, clickable title and snippet.
+- **Client-side federation**: the gateway's datacenter address is what the
+  public knowledge providers rate-limit, so the auxiliary call is made from the
+  reader's own connection instead. It is dispatched at the same moment as the
+  gateway request, in parallel and never before it, and it is never awaited:
+  the gateway's cards render first and the auxiliary cards are appended when
+  they arrive. The deadline is 2200ms (`AUX_TIMEOUT_MS`, clamped to the
+  2000-2500ms band), and every failure — network, CORS, non-2xx, malformed
+  JSON, timeout, an aborted search — resolves to `[]` and leaves no trace.
+  Results are normalised into the same `{ title, url, snippet, badge }` shape the
+  gateway's cards use, marked `federated: true`, and drawn by the same renderer,
+  so the only visible difference is the `Source: …` attribution line. No
+  iframe, no third-party widget, no script from anyone else.
 - **Full history screen**: opened from the profile popover, with a back arrow,
   five time-range clears (last 24 hours, last week, last month, last year, all
   time), per-row relative time ("2 hours ago") and a delete button. Entries are
@@ -108,7 +121,7 @@ instead of the app directory.
 
 `web/manifest.json` declares the standalone app (name, `./index.html` start URL,
 `#121212` theme and background, the vector eye icon as `any maskable`).
-`web/sw.js` precaches the shell and every module (23 entries), serves static
+`web/sw.js` precaches the shell and every module (24 entries), serves static
 assets cache-first, uses network-first for navigations with an offline shell
 fallback, and never touches `/v1/*` — search results are always live. The worker
 is registered from `app.js` on `load`, guarded by a `serviceWorker` check, so the

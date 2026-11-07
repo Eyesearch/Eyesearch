@@ -11,7 +11,7 @@
 // Bump this whenever a precached file changes. `activate` deletes every cache
 // whose name differs, so the old api-config.js — the one that pointed at the
 // dead Render host — is dropped instead of served forever.
-const CACHE_NAME = "eyesearch-v5";
+const CACHE_NAME = "eyesearch-v6";
 const OFFLINE_URL = "./index.html";
 
 const PRECACHE = [
@@ -36,6 +36,7 @@ const PRECACHE = [
   "./profile/local-history/clear-history.js",
   "./profile/local-history/history-view.js",
   "./results/nav-tabs/tab-switcher.js",
+  "./results/client-federation/aux-fetch.js",
   "./results/result-cards/web-card.js",
   "./results/result-cards/card-renderer.css",
   "./results/ai-chat/chat-panel.js",

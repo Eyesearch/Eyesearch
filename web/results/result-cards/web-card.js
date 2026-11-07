@@ -395,9 +395,16 @@ export function createWebCard(result, options = {}) {
     const attribution = document.createElement("div");
     attribution.className = "card-attribution";
 
+    // `badge` is the publisher's own name, for the sources whose key is not it:
+    // capitalising "duckduckgo" gives "Duckduckgo", and the provider is called
+    // DuckDuckGo. Single-word sources need no badge, so the key is the fallback.
+    const badgeName = result.federated === true ? String(result.badge || "").trim() : "";
+    const displayName =
+      badgeName || `${sourceName.charAt(0).toUpperCase()}${sourceName.slice(1)}`;
+
     const label = document.createElement("span");
     label.className = "card-attribution-label";
-    label.textContent = `Source: ${sourceName.charAt(0).toUpperCase()}${sourceName.slice(1)}`;
+    label.textContent = `Source: ${displayName}`;
 
     const sourceUrl = String(result.source_url || result.url || "").trim();
     if (sourceUrl) {

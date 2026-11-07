@@ -59,31 +59,6 @@ jobs:
           fi
           chromium --version
 
-      # TEMPORARY DIAGNOSTIC — remove once the headless invocation is settled.
-      - name: Which headless invocation works here
-        run: |
-          printf '<!doctype html><meta charset=utf-8><title>ok</title><p>hello\n' > /tmp/smoke.html
-          for variant in \
-            "--headless" \
-            "--headless=new" \
-            "--headless=old" \
-            "--headless --no-zygote --single-process"
-          do
-            echo "::group::chromium $variant"
-            start=$(date +%s)
-            set +e
-            timeout 45 chromium $variant --no-sandbox --disable-gpu \
-              --disable-dev-shm-usage --no-first-run --disable-background-networking \
-              --dump-dom file:///tmp/smoke.html > /tmp/out.html 2>/tmp/err.txt
-            code=$?
-            set -e
-            echo "exit=$code elapsed=$(( $(date +%s) - start ))s"
-            head -c 200 /tmp/out.html || true
-            echo
-            tail -5 /tmp/err.txt || true
-            echo "::endgroup::"
-          done
-
       - name: Run the web test suite
         run: |
           set -euo pipefail
@@ -101,6 +76,13 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # GitHub refuses a deployment from a branch the github-pages environment
+      # does not list — before the first step runs, so the job dies in a second
+      # with no log to read. Say it here instead, where someone will see it.
+      - name: Note on the deployment branch policy
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::notice title=Deployment branch policy::A run from ${GITHUB_REF_NAME} can only publish if that branch is allowed to deploy to the github-pages environment (Settings -> Environments -> github-pages -> Deployment branches). Otherwise GitHub refuses the deployment before any step runs."
       - name: Checkout production (main)
         uses: actions/checkout@v4
         with:

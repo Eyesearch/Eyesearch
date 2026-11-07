@@ -133,7 +133,13 @@ jobs:
             # Staging must never be mistaken for production: it is the same app
             # on the same origin, so a reader who lands on it needs to know, and
             # a crawler needs to leave it alone.
-            python3 .github/scripts/mark-staging.py site/develop
+            #
+            # The script comes out of the develop checkout, not the workspace
+            # root: the checkouts live in prod/ and dev/, and nothing is checked
+            # out where this step runs. Using develop's own copy also means the
+            # preview is marked by the branch it is previewing.
+            test -f dev/.github/scripts/mark-staging.py
+            python3 dev/.github/scripts/mark-staging.py site/develop
 
             echo "staging: included from develop"
           else

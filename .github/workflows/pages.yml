@@ -24,6 +24,15 @@ on:
       - "web/**"
       - ".github/workflows/pages.yml"
       - ".github/scripts/**"
+  # A pull request runs the tests and nothing else. The deploy job is guarded
+  # below, so a red deploy — or a branch the github-pages environment does not
+  # allow — can never be the thing that fails a review.
+  pull_request:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/pages.yml"
+      - ".github/scripts/**"
   workflow_dispatch:
 
 permissions:
@@ -73,6 +82,10 @@ jobs:
   deploy:
     name: Build and deploy web/
     needs: test
+    # Publishing is for pushes and manual runs only. A pull request is here to
+    # be tested, not deployed, and it must not depend on the deploy job's
+    # outcome to be green.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -81,8 +94,12 @@ jobs:
       # GitHub refuses a deployment from a branch the github-pages environment
       # does not list — before the first step runs, so the job dies in a second
       # with no log to read. Say it here instead, where someone will see it.
+      #
+      # `main` and `develop` are both allowed in the repository settings today
+      # (Settings -> Environments -> github-pages -> Deployment branches); this
+      # list mirrors them and exists for the next branch someone adds.
       - name: Note on the deployment branch policy
-        if: github.ref != 'refs/heads/main'
+        if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
         run: |
           echo "::notice title=Deployment branch policy::A run from ${GITHUB_REF_NAME} can only publish if that branch is allowed to deploy to the github-pages environment (Settings -> Environments -> github-pages -> Deployment branches). Otherwise GitHub refuses the deployment before any step runs."
       - name: Checkout production (main)

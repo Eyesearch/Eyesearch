@@ -142,11 +142,17 @@ it is served, and names its cache from that scope (`eyesearch-v6-eyesearch` vs
 `eyesearch-v6-eyesearch-develop`), so the two deployments never evict each
 other's cached shell.
 
-Both halves need two repository settings that a workflow cannot set for itself:
-Pages must be set to deploy from GitHub Actions (`Settings → Pages → Source:
-GitHub Actions`), and the `github-pages` environment must allow the `develop`
-branch (`Settings → Environments → github-pages → Deployment branches`), or the
-deploy job is refused before it runs.
+Both halves depend on two repository settings that a workflow cannot set for
+itself. Both are in place today:
+
+- Pages deploys from GitHub Actions (`Settings → Pages → Source: GitHub Actions`).
+- The `github-pages` environment allows `main` **and** `develop`
+  (`Settings → Environments → github-pages → Deployment branches`). A branch
+  missing from that list is refused before the deploy job's first step runs —
+  the job dies in a second with no log to read.
+
+A pull request runs the test job only; the deploy job is skipped on
+`pull_request`, so a review is never blocked by a deployment.
 
 ### Installable app (PWA)
 

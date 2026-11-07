@@ -104,7 +104,18 @@ document.title = JSON.stringify(out);
     writeFileSync(file, html);
     const raw = execFileSync(
       "chromium",
-      ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", `file://${file}`],
+      [
+        "--headless",
+        "--no-sandbox",
+        "--disable-gpu",
+        // Container-friendly: no usable /dev/shm, no first-run profile.
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--dump-dom",
+        `file://${file}`,
+      ],
       { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }
     );
     const match = raw.match(/<title>([\s\S]*?)<\/title>/);

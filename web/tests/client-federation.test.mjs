@@ -341,6 +341,11 @@ function render() {
         "--headless",
         "--disable-gpu",
         "--no-sandbox",
+        // Same container flags as the other card tests.
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
         "--window-size=760,900",
         "--virtual-time-budget=3000",
         "--dump-dom",

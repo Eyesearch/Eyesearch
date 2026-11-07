@@ -153,6 +153,13 @@ function render() {
         "--headless",
         "--disable-gpu",
         "--no-sandbox",
+        // CI runs this in a container: /dev/shm is small enough that Chrome
+        // deadlocks writing to it, and there is no first-run profile to find.
+        // Both are no-ops on a developer machine.
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
         "--window-size=760,900",
         "--virtual-time-budget=4000",
         "--dump-dom",

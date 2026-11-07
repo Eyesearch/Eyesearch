@@ -99,8 +99,20 @@ function probeAt(width) {
   try {
     const dom = execFileSync(
       "chromium",
-      ["--headless", "--disable-gpu", "--no-sandbox", `--window-size=${width},900`,
-       "--virtual-time-budget=4000", "--dump-dom", `file://${file}`],
+      [
+        "--headless",
+        "--disable-gpu",
+        "--no-sandbox",
+        // Container-friendly: no usable /dev/shm, no first-run profile.
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        `--window-size=${width},900`,
+        "--virtual-time-budget=4000",
+        "--dump-dom",
+        `file://${file}`,
+      ],
       { encoding: "utf8", timeout: 120000, stdio: ["ignore", "pipe", "ignore"] },
     );
     const start = dom.indexOf("PROBE:");

@@ -420,10 +420,16 @@ function renderPagination(payload) {
   const existing = document.getElementById("results-pagination");
   if (existing) existing.remove();
 
-  const shown = (payload.results || []).length;
+  // How many pages there are. `total_estimate` is the size of this page, not
+  // the number of matches — counting every match on a broad query is not
+  // something the gateway can afford — so the honest signal is `has_more`: the
+  // pool came back full, so there is another page behind this one. The window
+  // grows as the reader advances, and stops at the gateway's own limit of 20.
   const total = Number(payload.total_estimate) || 0;
-  const perPage = shown || 10;
-  const totalPages = Math.max(1, Math.min(20, Math.ceil(total / perPage)));
+  const perPage = (payload.results || []).length || 10;
+  const reported = Math.ceil(total / perPage);
+  const reachable = payload.has_more ? Math.max(reported, state.page + 2) : state.page;
+  const totalPages = Math.max(1, Math.min(20, reachable));
   state.totalPages = totalPages;
 
   if (totalPages <= 1) return;

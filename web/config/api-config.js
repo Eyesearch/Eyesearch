@@ -22,21 +22,15 @@
 //: Cloudflare, so the page stays on one protocol and the browser does not block
 //: the request as mixed content.
 //:
-//: This is a quick tunnel (`trycloudflare.com`), whose hostname is issued per
-//: process: it changes when the tunnel restarts, and the old name stops
-//: resolving. That has now happened twice in three days — `luggage-thru-liberty-
-//: ram`, then `possess-sense-airfare-athens`, now this. Each change is a frontend
-//: commit and a Pages deploy, and between them search is broken with no error
-//: the reader can act on.
-//:
-//: A named tunnel (`cloudflared tunnel create` plus a DNS record on a domain you
-//: control) fixes this permanently. Until then, when search reports an
-//: unreachable gateway while the VM is healthy, compare this string with the URL
-//: the tunnel printed on boot — that is the whole diagnosis.
+//: The gateway answers on the VM's own DNS name. It used to be a quick
+//: tunnel (`trycloudflare.com`), whose hostname is issued per process: it
+//: changed when the tunnel restarted, the old name stopped resolving, and
+//: search broke with no error the reader could act on — three times in three
+//: days. A name that does not change with a tunnel is the whole fix.
 //:
 //: This is the single place the gateway is named. Everything else — the search,
 //: the suggestions, the retrieve endpoint — is built from it.
-const DEFAULT_BASE = "https://loans-supervisor-casual-wayne.trycloudflare.com";
+const DEFAULT_BASE = "https://eyesearch.duckdns.org";
 const LOCAL_DEV_BASE = "http://127.0.0.1:8000";
 
 /**

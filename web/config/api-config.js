@@ -92,6 +92,8 @@ export const API_CONFIG = Object.freeze({
   requestTimeoutMs: 15000,
   //: One silent retry after this pause, then the error card.
   retryBackoffMs: 800,
+  /** Attempts per request, including the first. A DNS miss is worth re-asking. */
+  requestAttempts: 4,
 });
 
 export class ApiError extends Error {
@@ -246,7 +248,7 @@ async function request(url, options = {}) {
   const callerAborted = () => Boolean(options.signal && options.signal.aborted);
   let lastError;
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < API_CONFIG.requestAttempts; attempt += 1) {
     try {
       return await attemptRequest(url, options);
     } catch (error) {
@@ -255,8 +257,13 @@ async function request(url, options = {}) {
       // it, a user abort clears it. Testing `error.name` as well meant two
       // sources of truth, and the newer errors set only the flag.
       const retryable = error instanceof ApiError ? error.retryable : true;
-      if (attempt === 1 || callerAborted() || !retryable) break;
-      await new Promise((resolve) => setTimeout(resolve, API_CONFIG.retryBackoffMs));
+      if (attempt === API_CONFIG.requestAttempts - 1 || callerAborted() || !retryable) break;
+      // A name that fails to resolve usually resolves on the next ask: the free
+      // DNS the gateway answers on is not always prompt. One retry after 800 ms
+      // was not enough for that — the page showed "not responding" and then
+      // worked on the reader's own next try, which is the worst of both.
+      const backoff = API_CONFIG.retryBackoffMs * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
   throw lastError;

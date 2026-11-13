@@ -425,10 +425,17 @@ function renderPagination(payload) {
   // something the gateway can afford — so the honest signal is `has_more`: the
   // pool came back full, so there is another page behind this one. The window
   // grows as the reader advances, and stops at the gateway's own limit of 20.
+  const shown = (payload.results || []).length;
+  const perPage = shown || 10;
   const total = Number(payload.total_estimate) || 0;
-  const perPage = (payload.results || []).length || 10;
   const reported = Math.ceil(total / perPage);
-  const reachable = payload.has_more ? Math.max(reported, state.page + 2) : state.page;
+  // `has_more` is the gateway's own answer and is used when it is there. A
+  // gateway that predates it sends nothing, and a page that came back full is
+  // the same evidence by another route — so the footer appears either way
+  // rather than depending on a deploy having landed.
+  const full = shown >= (Number(payload.limit) || 10);
+  const hasMore = payload.has_more === true || (payload.has_more === undefined && full);
+  const reachable = hasMore ? Math.max(reported, state.page + 2) : state.page;
   const totalPages = Math.max(1, Math.min(20, reachable));
   state.totalPages = totalPages;
 

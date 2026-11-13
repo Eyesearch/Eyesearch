@@ -1,0 +1,62 @@
+/* Page numbers under the results. */
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 28px 0 40px;
+}
+
+.pagination-button {
+  min-width: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--border, rgba(127, 127, 127, 0.28));
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background: var(--hover, rgba(127, 127, 127, 0.12));
+}
+
+.pagination-button.is-current {
+  border-color: currentColor;
+  font-weight: 600;
+  cursor: default;
+}
+
+.pagination-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pagination-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.pagination-gap {
+  padding: 0 2px;
+  opacity: 0.6;
+}
+
+@media (max-width: 520px) {
+  .pagination {
+    gap: 4px;
+    margin: 22px 0 32px;
+  }
+
+  .pagination-button {
+    min-width: 34px;
+    padding: 7px 9px;
+    font-size: 0.85rem;
+  }
+}

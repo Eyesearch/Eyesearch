@@ -34,6 +34,7 @@ import {
   pickKnowledgeCard,
 } from "./results/result-cards/web-card.js";
 import { mountChatPanel } from "./results/ai-chat/chat-panel.js";
+import { createPagination } from "./results/pagination/pagination.js";
 
 const mount = (name) => document.querySelector(`[data-mount="${name}"]`);
 
@@ -44,6 +45,12 @@ const state = {
   token: 0,
   lastPayload: null,
   view: "home",
+  // Which page of results is on screen, and the pages already fetched. The
+  // client used to ask for page 1 and only page 1, so every page below the
+  // tenth result was crawled and never seen.
+  page: 1,
+  totalPages: 1,
+  pages: new Map(),
 };
 
 const els = {
@@ -158,8 +165,12 @@ function terms(query) {
     .slice(0, 6);
 }
 
-function syncUrl(query, push) {
-  const target = query ? `?q=${encodeURIComponent(query)}` : location.pathname;
+function syncUrl(query, push, page = 1) {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (query && page > 1) params.set("page", String(page));
+  const search = params.toString();
+  const target = query ? `?${search}` : location.pathname;
   try {
     if (push) history.pushState({ q: query }, "", target);
     else history.replaceState({ q: query }, "", target);
@@ -175,6 +186,109 @@ function setInputs(value) {
 }
 
 /* --------------------------------- results -------------------------------- */
+
+/**
+ * One page of results, from the cache when it is there.
+ *
+ * The cache is what makes a page number feel instant: page 2 is usually fetched
+ * while page 1 is being read, so pressing it swaps the list rather than waiting
+ * on the network.
+ */
+async function loadPage(query, page, signal) {
+  const cached = state.pages.get(page);
+  if (cached) return cached;
+  const payload = await searchWeb(query, { page, signal });
+  state.pages.set(page, payload);
+  return payload;
+}
+
+/** How many pages are held in memory. Bounded so a long session cannot grow. */
+const PAGE_CACHE_LIMIT = 5;
+
+/**
+ * Fetch the next page while the reader is still on this one.
+ *
+ * One page ahead, not all of them: ten cards at a time is a page, twenty in
+ * memory is nothing, and two hundred would be a phone's worth of work for pages
+ * nobody opens. Skipped entirely when the reader has asked to save data or is
+ * on a slow connection.
+ */
+function prefetchPage(query, page, token) {
+  if (page > state.totalPages) return;
+  if (state.pages.has(page)) return;
+
+  const connection = navigator.connection;
+  if (connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || ""))) {
+    return;
+  }
+
+  const run = async () => {
+    try {
+      const payload = await searchWeb(query, { page });
+      // The reader may have moved on: a different query, or home.
+      if (token !== state.token || state.query !== query) return;
+      state.pages.set(page, payload);
+      while (state.pages.size > PAGE_CACHE_LIMIT) {
+        const oldest = state.pages.keys().next().value;
+        if (oldest === state.page) break;
+        state.pages.delete(oldest);
+      }
+      if (page === state.page) {
+        state.lastPayload = payload;
+        renderPayload(payload, query, state.tab);
+      }
+    } catch (error) {
+      /* a prefetch that fails is not an error the reader needs to see */
+    }
+  };
+
+  if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 2000 });
+  else setTimeout(run, 300);
+}
+
+/** Show a page that is already in hand, or fetch it and show it. */
+async function goToPage(page) {
+  const target = Math.max(1, Math.trunc(page) || 1);
+  if (target === state.page || !state.query) return;
+
+  state.token += 1;
+  const token = state.token;
+  if (state.controller) state.controller.abort();
+  const controller = new AbortController();
+  state.controller = controller;
+
+  state.page = target;
+  syncUrl(state.query, true, target);
+
+  const ready = state.pages.get(target);
+  if (ready) {
+    state.lastPayload = ready;
+    renderPayload(ready, state.query, state.tab);
+    prefetchPage(state.query, target + 1, token);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+
+  renderSkeletons();
+  setBusy(true);
+  latency.setLoading();
+  try {
+    const payload = await loadPage(state.query, target, controller.signal);
+    if (token !== state.token) return;
+    state.lastPayload = payload;
+    renderPayload(payload, state.query, state.tab);
+    prefetchPage(state.query, target + 1, token);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (error) {
+    if (token !== state.token) return;
+    renderError(error);
+  } finally {
+    if (token === state.token) {
+      setBusy(false);
+      latency.reset();
+    }
+  }
+}
 
 async function runSearch(query, { tab = state.tab } = {}) {
   const cleaned = String(query || "").replace(/\s+/g, " ").trim();
@@ -215,12 +329,19 @@ async function runSearch(query, { tab = state.tab } = {}) {
   document.body.dataset.tab = "all";
   chatPanel.clear();
 
+  // A new query starts a new result set: the pages cached for the last one are
+  // no longer answers to anything.
+  state.pages.clear();
+  state.page = 1;
+  state.totalPages = 1;
+
   try {
-    const payload = await searchWeb(cleaned, { signal: controller.signal });
+    const payload = await loadPage(cleaned, 1, controller.signal);
     if (token !== state.token) return;
 
     state.lastPayload = payload;
     renderPayload(payload, cleaned, tab, started);
+    prefetchPage(cleaned, 2, token);
   } catch (error) {
     if (token !== state.token) return;
     if (error && (error.name === "AbortError" || error.name === "TimeoutError")) {
@@ -274,6 +395,8 @@ function renderPayload(payload, query, tab) {
   // itself makes the column stair-step, which reads as broken rather than tidy.
   equaliseCardHeights(els.cards);
 
+  renderPagination(payload);
+
   if (payload.degraded) showNotice(t("degradedNotice"));
 
   // Re-equalise when the window changes size: the cards are laid out again, and
@@ -285,6 +408,37 @@ function renderPayload(payload, query, tab) {
   });
 }
 
+/**
+ * Page numbers under the list.
+ *
+ * How many pages there are comes from the total the API reports against the
+ * page size; the API caps how deep it will go, so a wildcard query cannot ask
+ * for page nine thousand. The element is rebuilt on every render and removed
+ * when there is only one page, so a short result set has no footer at all.
+ */
+function renderPagination(payload) {
+  const existing = document.getElementById("results-pagination");
+  if (existing) existing.remove();
+
+  const shown = (payload.results || []).length;
+  const total = Number(payload.total_estimate) || 0;
+  const perPage = shown || 10;
+  const totalPages = Math.max(1, Math.min(20, Math.ceil(total / perPage)));
+  state.totalPages = totalPages;
+
+  if (totalPages <= 1) return;
+
+  const nav = createPagination({
+    page: state.page,
+    totalPages,
+    onPage: goToPage,
+    label: t("resultPages") || "Result pages",
+  });
+  if (!nav) return;
+  nav.id = "results-pagination";
+  els.cards.after(nav);
+}
+
 /** Reset to the home hero: clear results, the URL and the in-flight request. */
 function goHome({ focus = true } = {}) {
   state.token += 1;
@@ -294,6 +448,11 @@ function goHome({ focus = true } = {}) {
   }
   state.query = "";
   state.lastPayload = null;
+  state.page = 1;
+  state.totalPages = 1;
+  state.pages.clear();
+  const pagination = document.getElementById("results-pagination");
+  if (pagination) pagination.remove();
   if (els.cards) els.cards.textContent = "";
   latency.reset();
   showNotice("");
